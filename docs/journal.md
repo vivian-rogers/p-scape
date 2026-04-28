@@ -17,6 +17,17 @@ Keep entries short. The point is to give the next session (human or agent) enoug
 
 ---
 
+## 2026-04-28 — Reframe: lead with the urban question, not the diffgeo
+**Who:** Adam + Claude Code (Vivian feedback)
+**Done:**
+- Rewrote README, AGENTS.md, docs/math.md, and the GitHub repo description to lead with the urban / spatial-analysis question. Diffgeo is now a one-paragraph aside in math.md, not the framing.
+- Math content is unchanged: ellipse fit at each origin, scalar+deviatoric decomposition, L^p over the city. Just spoken differently — "ellipse to the isochrone", "effective speed", "anisotropy ratio" — instead of "Riemannian metric / geodesic ball".
+- Genre is *urban planning / spatial-mathematics academia*, not a math paper. Both collaborators are quant-fluent so math.md can stay technical; only the headline framing changed.
+**Next:**
+- Continue: real-data smoke against the Valhalla endpoint, then a small-grid Austin viz (effective-speed + anisotropy fields).
+**Blocked / open:**
+- None.
+
 ## 2026-04-28 — Valhalla up
 **Who:** Adam + Claude Code (Opus 4.7)
 **Done:**

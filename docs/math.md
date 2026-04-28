@@ -1,56 +1,72 @@
-# Mathematical formulation
+# Method
 
-This is the canonical statement of what we're computing. Code should match this; if it doesn't, fix one of them.
+Canonical statement of what we're computing. Code should match this; if it doesn't, fix one of them.
 
 ## Setup
 
-Let Ω ⊂ ℝ² be a bounded region of geographic space (Austin metro for the first pass), with points written in some local projection (e.g. UTM 14N) so that Euclidean distance d(x, y) = ‖x − y‖₂ is meaningful in meters.
+Let Ω ⊂ ℝ² be a bounded region of geographic space (Austin metro for the first pass), with points written in a local equal-area-ish projection (UTM 14N for Austin) so that Euclidean distance d(x, y) = ‖x − y‖₂ is meaningful in meters.
 
-A **routing function** τ : Ω × Ω → ℝ≥0 returns travel time (seconds) from origin x to destination y on a real transportation network. τ need not be symmetric (one-way streets) and is not, in general, a metric — but we will treat its symmetrized small-scale behavior as one.
+A **routing function** τ : Ω × Ω → ℝ≥0 returns travel time (seconds) from origin x to destination y on the real network — Valhalla served from a local OSM extract. τ is not symmetric in general (one-ways) and is not a metric in the formal sense, but its small-scale behavior around each origin is what we care about.
 
 An **isochrone** at origin x and time t is the level set
   I(x, t) = { y ∈ Ω : τ(x, y) ≤ t }.
-This is what routing engines like Valhalla return (typically as a polygon).
+Valhalla returns these as polygons.
 
-## Local effective-time tensor
+## Local ellipse fit
 
-The central object. At each x, we want a symmetric positive-definite 2×2 matrix g(x) — a Riemannian metric on the tangent plane T_x Ω — such that for small displacements v,
+The central object. At each x, we want a symmetric positive-definite 2×2 matrix g(x) such that for small displacements v,
   τ(x, x + v) ≈ √( vᵀ g(x) v ).
 
-**Interpretation.** The level sets {v : vᵀ g(x) v = t²} are ellipses; we are saying isochrones are *locally elliptical* and g(x) is the matrix of the best-fitting ellipse at origin x. The eigenvectors of g(x) give the slow/fast directions; the eigenvalue ratio measures local anisotropy (highway corridors → high anisotropy; isolated grid → ≈ isotropic).
+Geometrically: the level sets {v : vᵀ g(x) v = t²} are **ellipses**, and g(x) is the matrix of the best-fitting ellipse to the isochrone polygon at x.
 
-**How to fit.** Given an isochrone polygon I(x, t) for some small t, sample its boundary at angles θᵢ to get rays of length rᵢ(θᵢ). Each ray contributes a constraint
+What g encodes:
+- **Eigenvectors** = principal axes (slow / fast directions of the local network).
+- **Eigenvalues** = (1 / v_i)² where v_i is the effective speed along that axis. So:
+  - Fast axis speed: 1 / √λ_min(g).
+  - Slow axis speed: 1 / √λ_max(g).
+  - Anisotropy ratio: √(λ_max / λ_min) = (slow-axis travel time) / (fast-axis travel time). Equals 1 in an isotropic grid; large near major corridors.
+- **Determinant**: (det g)^(-1/4) is an effective isotropic speed (geometric mean of the two axis speeds).
+
+How to fit. Project the isochrone polygon to the local meter CRS. For each boundary vertex at angle θᵢ from the origin and projected distance rᵢ, write
   rᵢ² ( (cos θᵢ)² g₁₁ + 2 cos θᵢ sin θᵢ g₁₂ + (sin θᵢ)² g₂₂ ) = t².
-Solve in least squares for the three unknowns (g₁₁, g₁₂, g₂₂) subject to positive-definiteness.
+Stack the rows and solve in least squares for the three unknowns (g₁₁, g₁₂, g₂₂). Project to the PSD cone if the fit comes out slightly indefinite due to polygon noise.
 
-One isochrone call per origin x. **O(N²) origins → O(N²) calls**, vs. the naïve O(N⁴) of doing pairwise τ.
+Cost: **one isochrone call per origin**. So O(N²) origins → O(N²) calls — versus the naïve "compute τ between every pair of points" approach which is O(N⁴).
 
 ## Comparison to Euclidean
 
-The Euclidean reference is g_E = (1/v̄²) I, where v̄ is some reference speed (e.g. average free-flow speed in the region). Then √(vᵀ g_E v) = ‖v‖ / v̄.
+The Euclidean reference is g_E = (1/v̄²) I, where v̄ is some chosen reference speed (regional free-flow average, or whatever lets us compare cities cleanly).
 
 Local deviation field:
   Δ(x) := g(x) − g_E.
-We can decompose Δ into:
-- **scalar part** (1/2) tr(Δ): how much slower/faster than reference, isotropically.
-- **deviatoric part** Δ − (1/2) tr(Δ) I: anisotropy, traceless symmetric. Magnitude is the spectral norm.
+Decompose into:
+- **Scalar part** ½ tr(Δ): how much slower (or faster) than the reference, isotropically.
+- **Deviatoric part** Δ − ½ tr(Δ) I: traceless symmetric — pure anisotropy. Magnitude is the spectral norm.
 
-## Global L^p norm
+## Global L^p summary
 
-To get a single number summarizing how non-Euclidean the network is over Ω,
+A single number summarizing "how non-Euclidean is this network":
   ‖τ − d‖_p := ( ∫_Ω ‖Δ(x)‖_F^p dx )^(1/p)
-where ‖·‖_F is Frobenius. For p → ∞ this picks up the worst-case anisotropy spot (the bridge bottleneck, the freeway exit). For p = 1 it's a mean. We'll likely report p ∈ {1, 2, ∞}.
+where ‖·‖_F is Frobenius. p → ∞ picks up worst-case anisotropy spots (the bottleneck bridge, the freeway exit). p = 1 is a mean. We'll likely report p ∈ {1, 2, ∞}.
+
+Per-component versions (just the scalar slow-down, just the anisotropy) are also useful and trivial to compute from the same Δ field.
 
 ## Things to be careful about
 
-- **Asymmetry**: τ(x, y) ≠ τ(y, x). The local quadratic-form fit symmetrizes implicitly. If we care about asymmetry, we'd fit a more general object (Finsler metric) instead — flag for later.
-- **Non-smoothness**: real τ has discontinuities at network features (bridge out, ferry schedule). The tensor field g(x) will be noisy near these; smoothing matters.
-- **Projection distortion**: do all geometry in a local projection, not lat/lon. UTM 14N is fine for Austin.
-- **Isochrone polygon quality**: Valhalla returns polygons that are coarse approximations. The fit's accuracy is bounded by polygon resolution, not by τ itself.
+- **Asymmetry**: τ(x, y) ≠ τ(y, x). The ellipse fit symmetrizes implicitly (an ellipse has no preferred direction). If we want directional asymmetry, we'd need a richer object — see "open questions."
+- **Non-smoothness**: real τ has discontinuities at network features (bridge out, ferry schedule). g(x) will be noisy near these; some smoothing of the field is warranted.
+- **Projection distortion**: do all geometry in a local meter CRS, not lat/lon. UTM 14N (EPSG:32614) for Austin.
+- **Polygon resolution**: Valhalla returns polygons at finite resolution. The fit's accuracy is bounded by polygon density, not by τ itself. Using a larger contour t (say, 10 min vs. 2 min) gives more boundary points and a more stable fit, at the cost of "small-displacement" approximation quality.
+- **Choice of t**: too small and the polygon has too few vertices; too large and the ellipse approximation breaks down. Probably worth fitting at a couple of t values and comparing.
+
+## Connection to differential geometry (note for the curious)
+
+The object g(x) is exactly a Riemannian metric on Ω, and the isochrones-as-ellipses claim is the local-quadratic approximation to its geodesic balls. Treating directional asymmetry would push us to a **Finsler metric**. We're not pursuing the diffgeo machinery here — there's no need to compute geodesics, curvature, or covariant derivatives for the urban questions we care about — but the language is occasionally a useful shorthand and we'll borrow it where it clarifies.
 
 ## Open questions
 
-- Best p? Maybe report a curve.
-- How to treat directional asymmetry rigorously — Finsler vs. averaging?
-- Multimodal: is τ "by car"? Add transit/walk and compare?
-- Time-of-day: τ is really τ(x, y, t_of_day). For a first pass we'll use a single representative weekday morning.
+- Best p for the global summary? Probably worth reporting a curve.
+- Asymmetry: τ(x,y) ≠ τ(y,x). Average vs. fit a richer object?
+- Multimodal: drive vs. transit vs. bike, and the gaps between.
+- Time-of-day: τ really depends on departure time. First pass uses a single representative weekday morning; later, a small set of time slices.
+- What's the right reference v̄? Regional mean free-flow speed is one choice; "the same Euclidean for all cities so we can compare" is another.

@@ -4,7 +4,11 @@ Guide for both humans and agentic coding tools (Claude Code, Codex, Cursor, etc.
 
 ## What this repo is
 
-A research project: derive a Riemannian-style "effective-time" metric on geographic space from routing isochrones, and compare it to the Euclidean (great-circle) norm. See [docs/math.md](docs/math.md) for the formulation.
+A quantitative urban-analysis project. We compute lots of isochrones across a city and characterize how the road network deviates from straight-line distance: where it's anisotropic (highway corridors), where it's slow, where "close on a map" doesn't mean "close in time."
+
+Method in one sentence: at each origin, fit an ellipse to the isochrone, extract local effective speeds + an anisotropy ratio, aggregate over a grid into maps + a single L^p summary. See [docs/math.md](docs/math.md) for the details.
+
+Genre: urban planning / spatial analysis with real math. The collaborators are quant-fluent (one EE, one cities nerd) — math.md can be technical. Public-facing framing (this file, README) leads with the *city* question, not the geometry.
 
 Target region for the first pass: **Austin, TX**. Routing backend: **local Valhalla** in Docker on an OSM extract — local-only is a hard requirement (we want to fire isochrone calls without rate limits or cost).
 
