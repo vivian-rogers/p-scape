@@ -17,6 +17,21 @@ Keep entries short. The point is to give the next session (human or agent) enoug
 
 ---
 
+## 2026-04-28 — Valhalla up
+**Who:** Adam + Claude Code (Opus 4.7)
+**Done:**
+- Installed OrbStack (Apple Silicon, both collaborators on AS).
+- Pulled `ghcr.io/gis-ops/docker-valhalla/valhalla:latest`.
+- Downloaded Austin OSM extract (BBBike, ~64MB) to `data/valhalla/Austin.osm.pbf`.
+- `docker-compose.yml` at repo root; `scripts/fetch_extract.sh` for the .pbf.
+- `docker compose up -d` → tiles built in ~minutes → `http://localhost:8002/isochrone` returns clean polygons (5/10/15-min from downtown Austin: 336 / 1194 / 3557 boundary points).
+**Next:**
+- Thin Python wrapper in `src/isochrone_metric/routing.py` for the isochrone POST.
+- `fit_local_tensor(polygon, origin, t)` — least-squares fit of g(x). Test on a synthetic ellipse first, then real Austin data.
+- A first notebook visualizing the tensor field over a small grid.
+**Blocked / open:**
+- None.
+
 ## 2026-04-28 — Repo bootstrap
 **Who:** Adam + Claude Code (Opus 4.7)
 **Done:**
