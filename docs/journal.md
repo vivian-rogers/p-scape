@@ -17,6 +17,32 @@ Keep entries short. The point is to give the next session (human or agent) enoug
 
 ---
 
+## 2026-04-28 — End of session, pickup notes
+**Who:** Adam + Claude Code
+**State of the world:**
+- End-to-end pipeline works: Valhalla on `localhost:8002`, Python wrapper, ellipse fit (6/6 synthetic tests green), 7×7 grid runner, three plot types, sample figures in `docs/figures/`. See [the previous entry](#2026-04-28--first-austin-grid--viz-end-to-end) for results.
+- Vivian has write access, no commits from her yet.
+- OrbStack + `isochrone-metric-valhalla` container running locally on Adam's Mac. Fine to leave up; `docker compose stop` from repo root to halt.
+
+**One loose end (do this first next session):**
+- `data/results/` is still tracked in git from an earlier commit; gitignore now excludes it but the existing files weren't untracked. Run:
+  ```sh
+  git rm -rf --cached data/results && git commit -m "chore: untrack data/results/" && git push
+  ```
+
+**Pickup queue (priority order):**
+1. **Debug viz** — for one origin (e.g., the max-anisotropy spot, ratio 4.46), draw the actual isochrone polygon and the fitted ellipse on the same axes. Sanity check that the fit is doing what we think it is. Add as `scripts/debug_one_origin.py`.
+2. **Edge-of-extract investigation** — the western column of the 7×7 grid is suspiciously slow. Check whether the BBBike "Austin" extract is clipped through that area; if so, swap to a wider Geofabrik Texas extract cropped to a generous Austin bbox.
+3. **Scale up** — 21×21 and 41×41 grids. Time them. Should still be < 1 minute on the local Valhalla.
+4. **Global L^p number** — implement the actual ‖τ − d‖_p computation from a grid-of-fits + a chosen reference speed v̄. Report at p ∈ {1, 2, ∞}.
+5. **Asymmetry probe** — pick a few origins and visualize τ(x→y) vs τ(y→x) on the boundary. Decide whether to keep the symmetric ellipse or move to Finsler.
+
+**Open questions / notes for whoever picks this up (incl. Vivian):**
+- Reference speed v̄ is undetermined. Free-flow regional mean is a sensible default; for cross-city comparison we may want a fixed v̄ across all cities.
+- Best contour t for the fit: 10 min worked. Worth running at 5 / 10 / 15 min on the same grid and seeing if the recovered g is consistent (small displacement assumption).
+- Time-of-day: currently using Valhalla defaults. Real τ is τ(x, y, t_of_day). First pass is fine without it; later, slice by departure time.
+- The reframe (urban-first, diffgeo-as-aside) hasn't been ack'd by Vivian yet — she may want further changes to README/AGENTS/math.md.
+
 ## 2026-04-28 — First Austin grid + viz, end-to-end
 **Who:** Adam + Claude Code
 **Done:**
