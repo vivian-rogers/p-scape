@@ -35,3 +35,18 @@ docker compose up -d         # first start builds Valhalla tiles (a few minutes)
 ```
 
 Then `http://localhost:8002/isochrone` is the routing endpoint. See `src/isochrone_metric/routing.py` for the Python wrapper, `src/isochrone_metric/tensor.py` for the per-point ellipse fit.
+
+## A first look at Austin
+
+Run the pipeline end-to-end:
+
+```sh
+uv run python scripts/run_austin_grid.py --n 7 --minutes 10
+uv run python scripts/plot_grid.py data/results/austin_7x7_10min.jsonl
+```
+
+49 origins on a 7×7 grid over central Austin, 10-minute drive isochrones, ellipse fit at each. Sample output (figures committed to `docs/figures/`):
+
+![Effective-speed ellipses](docs/figures/austin_7x7_10min_ellipses.png)
+
+The dot at each origin becomes an ellipse: aspect = anisotropy, major axis = fast direction, color = mean effective speed (mph). Over central Austin: median effective speed ~31 mph, median anisotropy ratio ~1.4, max ~4.5 (one origin where the slow axis is nearly 5× the fast axis — a corridor effect). End-to-end: ~1.5s for all 49 fits against the local Valhalla.

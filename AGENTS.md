@@ -50,10 +50,13 @@ docs/
 ```sh
 uv sync                                  # install deps
 cp .env.example .env                     # one-time
-uv run python -c "import isochrone_metric; print(isochrone_metric.__version__)"
+./scripts/fetch_extract.sh               # download the Austin OSM extract
+docker compose up -d                     # bring up Valhalla on :8002 (first start builds tiles)
+uv run python scripts/run_austin_grid.py --n 7 --minutes 10
+uv run python scripts/plot_grid.py data/results/austin_7x7_10min.jsonl
 ```
 
-Routing: TBD. Valhalla via Docker on an Austin OSM extract. Setup script will land in `scripts/` and be referenced here.
+Outputs go to `data/results/` (gitignored): a JSONL of per-origin fits and PNGs under `plots/`.
 
 ## Who's working here
 

@@ -17,6 +17,23 @@ Keep entries short. The point is to give the next session (human or agent) enoug
 
 ---
 
+## 2026-04-28 — First Austin grid + viz, end-to-end
+**Who:** Adam + Claude Code
+**Done:**
+- `src/isochrone_metric/grid.py`: threaded fetch+fit over an arbitrary list of origins, persists to JSONL.
+- `scripts/run_austin_grid.py`: 7×7 grid over a central-Austin bbox at 10 min. Ran 49 origins, 0 errors, ~1.5s end-to-end against local Valhalla.
+- `scripts/plot_grid.py`: three figures per run — ellipse field, effective-speed scatter, anisotropy scatter (log color).
+- Sample run committed to `docs/figures/` so it's visible in GitHub without re-running.
+- First numbers: median effective speed 31 mph, range 11–38 mph; median anisotropy 1.38, max 4.46. Edge of the bbox shows speed dropoff — partly real (out of urban core), partly a hint that we're approaching the OSM extract boundary and should keep that in mind when interpreting edges.
+- Set repo-local git identity (Adam Altmejd) so commits don't read as the global "Dogs Playing Poker."
+**Next:**
+- Sanity check: at the slowest / most anisotropic origins, eyeball the actual isochrone polygon and the fitted ellipse together. (A debug viz that draws polygon + ellipse for one origin.)
+- Edge-of-extract: the western column is suspiciously slow. Is the extract clipped through Austin's western suburbs? Investigate, possibly bump to a Geofabrik Texas extract cropped wider.
+- Bigger grids — 21×21, 41×41 — and time how long they take. Should still be < a minute locally.
+- Compute the global L^p number(s).
+**Blocked / open:**
+- None.
+
 ## 2026-04-28 — Reframe: lead with the urban question, not the diffgeo
 **Who:** Adam + Claude Code (Vivian feedback)
 **Done:**
