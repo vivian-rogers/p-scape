@@ -5,7 +5,9 @@ __pycache__/
 .env
 data/raw/
 data/cache/
-data/*.osm.pbf
+data/**/*.osm.pbf
+data/valhalla/
+!data/valhalla/.gitkeep
 *.tif
 .DS_Store
 .ruff_cache/

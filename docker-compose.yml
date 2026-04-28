@@ -1,0 +1,18 @@
+services:
+  valhalla:
+    image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+    container_name: isochrone-metric-valhalla
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./data/valhalla:/custom_files
+    environment:
+      # Drop *.osm.pbf into ./data/valhalla/ and Valhalla will (re)build tiles on first start.
+      - server_threads=4
+      - use_tiles_ignore_pbf=False
+      - force_rebuild=False
+      - update_existing_config=True
+      - build_elevation=False
+      - build_admins=True
+      - build_time_zones=True
