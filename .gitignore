@@ -3,11 +3,11 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 .env
-data/raw/
-data/cache/
-data/**/*.osm.pbf
-data/valhalla/
-!data/valhalla/.gitkeep
+# All of data/ is local — runs, caches, OSM extracts, Valhalla tiles.
+# Reproducibility lives in scripts that re-fetch / re-run; sample figures
+# worth showing in the repo go under docs/figures/.
+data/*
+!data/.gitkeep
 *.tif
 .DS_Store
 .ruff_cache/
