@@ -86,6 +86,19 @@ Keep entries short. The point is to give the next session (human or agent) enoug
 **Blocked / open:**
 - None.
 
+## 2026-04-28 — p-as-design-metric framing (parallel pnorm/ track)
+**Who:** Adam + Claude Code (Opus 4.7)
+**Done:**
+- Captured Adam's framing: promote `p` in an effective L^p norm to a free parameter and treat it as an urban-design diagnostic. Working hypothesis: p ≈ 2 is desirable; grids sit near p = 1; suburbs can go below 1 (non-convex accessibility balls, no longer a true norm).
+- Wrote [docs/p-as-design-metric.md](p-as-design-metric.md): six candidate frameworks (A–F) ranked, recommended order A → D → B → C → E, open questions including reconciliation with `math.md`'s Riemannian-only fit.
+- Spun up sibling subproject under `pnorm/` to develop this independently of the ellipse/Riemannian track. `pnorm/` has its own routing infra (OSRM car + foot), its own circuity grids, and its own journal. The two tracks should be reconciled later; for now they coexist.
+**Next:**
+- Framework F+A smoke test: detour-ratio R(θ) scatter + global isotropic p fit for Austin. Can start with a small hosted-ORS sample or a tiny Valhalla run once Docker is up.
+- Once isochrone infra is alive (existing `math.md` plan), framework B (per-origin p(x) field) becomes primary and `math.md` needs a pass to position the Riemannian fit as the p=2 specialization.
+**Blocked / open:**
+- Docker/Valhalla still the gate for anything beyond a toy A-run on the parent track. (`pnorm/` runs its own OSRM containers separately on :5001 / :5002.)
+- p < 1 case: need to pick naming — "quasi-norm," "Minkowski functional," or just "shape parameter."
+
 ## 2026-04-28 — Repo bootstrap
 **Who:** Adam + Claude Code (Opus 4.7)
 **Done:**

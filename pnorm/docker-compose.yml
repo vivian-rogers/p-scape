@@ -1,0 +1,20 @@
+services:
+  osrm-car:
+    image: osrm/osrm-backend:latest
+    container_name: pnorm-osrm-car
+    command: osrm-routed --algorithm mld --max-table-size 10000 /data/austin.osrm
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./data/osrm-car:/data
+    restart: unless-stopped
+
+  osrm-foot:
+    image: osrm/osrm-backend:latest
+    container_name: pnorm-osrm-foot
+    command: osrm-routed --algorithm mld --max-table-size 10000 /data/austin.osrm
+    ports:
+      - "5002:5000"
+    volumes:
+      - ./data/osrm-foot:/data
+    restart: unless-stopped

@@ -1,0 +1,25 @@
+[project]
+name = "pnorm"
+version = "0.0.0"
+description = "Effective L^p norm of urban travel-time geometry."
+requires-python = ">=3.11"
+dependencies = [
+    "numpy",
+    "scipy",
+    "requests",
+    "matplotlib",
+    "pyproj",
+    "tqdm",
+    "folium",
+    "branca",
+]
+
+[project.optional-dependencies]
+dev = ["ruff", "pytest", "ipykernel", "jupyterlab"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pnorm"]
