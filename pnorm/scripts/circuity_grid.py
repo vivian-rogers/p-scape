@@ -17,6 +17,7 @@ from matplotlib.patches import RegularPolygon
 from tqdm import tqdm
 
 from pnorm.circuity import ring_destinations
+from pnorm.cities import use_city
 from pnorm.geo import AUSTIN_BBOX, to_utm
 from pnorm.grid import hex_grid_utm
 from pnorm.osrm import OSRM
@@ -64,6 +65,7 @@ def run_grid(spacing_m, radius_m, n_dests, url, out_npz, bbox=AUSTIN_BBOX, inset
 
     out = Path(out_npz)
     out.parent.mkdir(parents=True, exist_ok=True)
+    from pnorm.geo import current_utm_epsg
     np.savez(
         out,
         xy_utm=xy,
@@ -74,6 +76,7 @@ def run_grid(spacing_m, radius_m, n_dests, url, out_npz, bbox=AUSTIN_BBOX, inset
         spacing_m=spacing_m,
         radius_m=radius_m,
         n_dests=n_dests,
+        utm_epsg=current_utm_epsg(),
     )
     print(f"saved {out}")
     return out
@@ -161,11 +164,17 @@ if __name__ == "__main__":
     ap.add_argument("--npz", default="data/circuity_grid.npz")
     ap.add_argument("--out", default="data/circuity_grid.png")
     ap.add_argument("--bbox", default=None,
-                    help="min_lon,min_lat,max_lon,max_lat (default: Austin full bbox)")
+                    help="min_lon,min_lat,max_lon,max_lat (overrides --city)")
+    ap.add_argument("--city", default=None,
+                    help="city key from pnorm/cities.py (sets bbox + UTM)")
     ap.add_argument("--render-only", action="store_true")
     a = ap.parse_args()
 
-    bbox = AUSTIN_BBOX
+    if a.city:
+        city = use_city(a.city)
+        bbox = city.bbox
+    else:
+        bbox = AUSTIN_BBOX
     if a.bbox:
         bbox = tuple(float(x) for x in a.bbox.split(","))
 

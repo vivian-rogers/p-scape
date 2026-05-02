@@ -4,6 +4,46 @@ Append-only. Newest on top. Same format as parent.
 
 ---
 
+## 2026-05-01 — Multi-city: catalog + NYC end-to-end
+**Who:** Adam + Claude Code (Opus 4.7)
+**Done:**
+- Added `pnorm.cities` catalog with 6 entries: `austin, nyc, houston, sf, chicago, boston`. Each carries bbox, UTM EPSG, Geofabrik region path, default folium center/zoom.
+- Made `pnorm.geo` UTM-zone-switchable: `set_utm_epsg(epsg)` flips the active projection. `cities.use_city(key)` is the one-call setup. Default stays UTM 14N (Austin) for backwards compat.
+- `build_tiles.sh` now takes `CITY=<key>` env var; bbox + Geofabrik region come from the catalog. Output goes to `data/osrm-${PROFILE}-${CITY}/${CITY}.osrm`.
+- `docker-compose.yml` parameterized: `CITY=<key> docker compose up -d` mounts the right tile dir on each service. One city loaded at a time; `down` then `up` to swap.
+- `circuity_grid.py` and `circuity_map_multi.py` accept `--city <key>`. Grid script saves the active `utm_epsg` into the npz; map script restores it on read so cells render correctly across cities without manual flag-juggling.
+- Renamed pre-existing Austin tile dirs to `data/osrm-{car,foot}-austin/` to fit the new convention. Existing Austin npz files still work (UTM 14N is the default).
+- Built NYC tiles (Geofabrik new-york → osmium crop to bbox `(-74.04, 40.68, -73.86, 40.83)` → osrm extract / partition / customize). Both car and foot.
+- NYC analysis run: car at spacing 250 m × radii {1, 2, 3} km on the full bbox; foot at spacing 50 m × radii {200, 400, 800} m on a Manhattan-only bbox `(-74.02, 40.70, -73.93, 40.79)`.
+- Renders: `data/nyc_car_p.html` (6.7 MB, 7k cells), `data/nyc_foot_p.html` (62 MB, 63k cells, Manhattan-only).
+
+**Stats — NYC Manhattan vs Austin UT/downtown core (foot, identical settings):**
+
+| radius | NYC median p | Austin median p | NYC p90 | Austin p90 |
+|--------|-------------|----------------|---------|------------|
+| 200 m  | 0.84        | 0.71           | 0.99    | 0.92       |
+| 400 m  | 0.93        | 0.79           | 1.01    | 0.95       |
+| 800 m  | **0.97**    | 0.89           | **1.06**| 0.99       |
+
+At r=800 m Manhattan walking is essentially p=1 (Manhattan grid, fittingly). The p90 > 1 means meaningful chunks of Manhattan are **better than a perfect grid** — long-avenue diagonals (Broadway, Bowery) cutting across the rectangle.
+
+**NYC car vs NYC foot, same metro:**
+| radius | car p | foot p (smaller bbox) |
+|--------|-------|------------------------|
+| 1 km   | 0.62  | (foot 800 m: 0.97)     |
+| 3 km   | 0.68  | —                      |
+
+Drivers do worse than walkers in Manhattan — one-way streets, bridge bottlenecks, Hudson/East River as barriers. The opposite signal from Austin where car > foot at most scales.
+**Next:**
+- Render NYC p-maps with Spectral, vmin=0.25, vmax=1.5, mirroring Austin's color treatment. Compare medians side-by-side: Austin car r=1km median p=0.51 → what does Manhattan look like?
+- Build tiles for one more city — Houston is the natural foil to NYC (extreme sprawl vs. extreme density).
+- Eventually: a small comparison script that loads multiple cities' npz files and prints a stats table (median p, p10, p90, etc.) for cross-city ranking.
+**Blocked / open:**
+- Existing Austin npz files don't carry the `utm_epsg` field (they predate the catalog). The map script falls back to the module default (UTM 14N) which happens to be correct for them. New runs are self-describing.
+- For Manhattan walking grids, default 50 m spacing on the full NYC bbox would be ~100k cells per layer. We narrow to a Manhattan-only bbox to keep the HTML manageable; future improvement is to make a per-city walking_bbox optional.
+
+---
+
 ## 2026-05-01 — Spectral colormap, UT/downtown high-res walking map
 **Who:** Adam + Claude Code (Opus 4.7)
 **Done:**

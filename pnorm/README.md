@@ -1,17 +1,53 @@
 # pnorm
 
+> **Heads up — Vivian:** this is a *parallel* track to the work in `../src/isochrone_metric/`. The two coexist intentionally and don't share any state.
+>
+> | | Parent track | This track (`pnorm/`) |
+> |---|---|---|
+> | Routing engine | Valhalla on `:8002` | OSRM (car `:5001`, foot `:5002`) |
+> | Tile data | `data/valhalla/` | `data/osrm-{car,foot}-<city>/` |
+> | Python package | `src/isochrone_metric/` | `pnorm/src/pnorm/` |
+> | Method | Riemannian ellipse fit per origin | Mean circuity → effective L^p exponent per origin |
+> | Output | Per-origin g(x) tensor field | Per-origin p(x) field (folium maps) |
+>
+> Don't try to run both Docker stacks at once unless you have RAM to spare; they're independent and can be brought up/down separately. See `docs/setup.md` for the OSRM side.
+
 Sibling experiment to the parent `isochrone-metric` project. Same raw idea (travel-time geometry on a city), but this track **promotes p to a free parameter** of the local norm rather than committing to a Riemannian (p = 2) fit.
 
 ## Quickstart
 
 ```sh
 uv sync
-./scripts/build_tiles.sh        # ~5–15 min, one-time
-docker compose up -d osrm
+CITY=austin PROFILE=car  ./scripts/build_tiles.sh   # ~5–15 min, one-time per (city, profile)
+CITY=austin PROFILE=foot ./scripts/build_tiles.sh
+CITY=austin docker compose up -d                    # serves on :5001 (car), :5002 (foot)
 uv run python scripts/smoke_test.py
 ```
 
 Full setup: [docs/setup.md](docs/setup.md).
+
+## Cities
+
+City presets live in [`src/pnorm/cities.py`](src/pnorm/cities.py). Each carries a bbox,
+the right UTM zone for distance work, the Geofabrik region path that contains it, and
+a default folium map view.
+
+| Key      | Region         | UTM    | Bbox-ish coverage                                |
+|----------|----------------|--------|--------------------------------------------------|
+| austin   | Texas          | 14N    | metro core: airport → Parmer, Bee Cave → SH-130  |
+| nyc      | New York       | 18N    | Manhattan + adjacent Bk / Qns / South Bronx      |
+| houston  | Texas          | 15N    | downtown + Inner Loop                             |
+| sf       | California     | 10N    | SF proper (peninsula tip)                         |
+| chicago  | Illinois       | 16N    | Loop + North Side                                 |
+| boston   | Massachusetts  | 19N    | Boston proper                                     |
+
+Switch via `CITY=<key>` on `build_tiles.sh` and `docker compose up`, and `--city <key>`
+on `circuity_grid.py` / `circuity_map_multi.py`.  Only one city's tiles are mounted by
+the OSRM containers at a time — `docker compose down` then bring up with the new CITY
+to switch.
+
+Adding a city: append an entry to `cities.py` (key, bbox, UTM EPSG, Geofabrik region path,
+folium center+zoom).  No other code changes needed.
 
 ## Docs
 

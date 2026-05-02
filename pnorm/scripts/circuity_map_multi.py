@@ -21,7 +21,8 @@ import branca.colormap as bcm
 import folium
 import numpy as np
 
-from pnorm.geo import to_lonlat
+from pnorm.cities import get_city
+from pnorm.geo import set_utm_epsg, to_lonlat
 from pnorm.lp_inversion import p_of_circuity
 
 
@@ -92,6 +93,8 @@ def add_layer(m, npz_path, cmap, vmin, vmax, field, show=False):
     lonlat = data["lonlat"]
     spacing = float(data["spacing_m"])
     radius = float(data["radius_m"])
+    if "utm_epsg" in data.files:
+        set_utm_epsg(int(data["utm_epsg"]))
     vals = get_field_values(data, field)
     p_vals = vals if field == "effective_p" else p_of_circuity(data["mean_circuity"])
 
@@ -198,11 +201,27 @@ if __name__ == "__main__":
                     choices=["mean_circuity", "mean_excess_m", "effective_p"])
     ap.add_argument("--vmin", type=float, default=None)
     ap.add_argument("--vmax", type=float, default=None)
-    ap.add_argument("--zoom", type=int, default=12)
-    ap.add_argument("--center", default="30.2672,-97.7431",
-                    help="lat,lon (default: downtown Austin)")
+    ap.add_argument("--zoom", type=int, default=None)
+    ap.add_argument("--center", default=None,
+                    help="lat,lon (overrides --city default)")
     ap.add_argument("--cmap", default="inferno", choices=["inferno", "spectral"])
+    ap.add_argument("--city", default=None,
+                    help="city key for default UTM, center, zoom")
     a = ap.parse_args()
 
-    center = tuple(float(x) for x in a.center.split(","))
-    main(a.npz, a.out, a.field, a.vmin, a.vmax, a.zoom, center, cmap_name=a.cmap)
+    if a.city:
+        city = get_city(a.city)
+        set_utm_epsg(city.utm_epsg)
+        default_center = city.center
+        default_zoom = city.default_zoom
+    else:
+        default_center = (30.2672, -97.7431)
+        default_zoom = 12
+
+    if a.center:
+        center = tuple(float(x) for x in a.center.split(","))
+    else:
+        center = default_center
+    zoom = a.zoom if a.zoom is not None else default_zoom
+
+    main(a.npz, a.out, a.field, a.vmin, a.vmax, zoom, center, cmap_name=a.cmap)

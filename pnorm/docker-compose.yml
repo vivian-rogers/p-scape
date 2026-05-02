@@ -1,20 +1,25 @@
+# Single-city OSRM stack. Run as:
+#   CITY=austin docker compose up -d        (or any other key from pnorm/cities.py)
+#   CITY=nyc    docker compose up -d
+# To switch cities, `docker compose down` first.
+
 services:
   osrm-car:
     image: osrm/osrm-backend:latest
     container_name: pnorm-osrm-car
-    command: osrm-routed --algorithm mld --max-table-size 10000 /data/austin.osrm
+    command: osrm-routed --algorithm mld --max-table-size 10000 /data/${CITY:-austin}.osrm
     ports:
       - "5001:5000"
     volumes:
-      - ./data/osrm-car:/data
+      - ./data/osrm-car-${CITY:-austin}:/data
     restart: unless-stopped
 
   osrm-foot:
     image: osrm/osrm-backend:latest
     container_name: pnorm-osrm-foot
-    command: osrm-routed --algorithm mld --max-table-size 10000 /data/austin.osrm
+    command: osrm-routed --algorithm mld --max-table-size 10000 /data/${CITY:-austin}.osrm
     ports:
       - "5002:5000"
     volumes:
-      - ./data/osrm-foot:/data
+      - ./data/osrm-foot-${CITY:-austin}:/data
     restart: unless-stopped
