@@ -34,6 +34,12 @@ _SPECTRAL_STOPS = [
     "#9e0142", "#d53e4f", "#f46d43", "#fdae61", "#fee08b", "#ffffbf",
     "#e6f598", "#abdda4", "#66c2a5", "#3288bd", "#5e4fa2",
 ]
+# matplotlib `seismic` reversed: red at the low end, white in the middle, blue at the high end
+_SEISMIC_R_STOPS = [
+    "#4d0000", "#a30000", "#fa0000", "#ff5151", "#ffa8a8",
+    "#ffffff",
+    "#a8a8ff", "#5251ff", "#0000fa", "#0000a3", "#00004d",
+]
 
 
 def hex_polygon_latlon(cx_utm, cy_utm, spacing_m):
@@ -51,14 +57,17 @@ def hex_polygon_latlon(cx_utm, cy_utm, spacing_m):
 def make_cmap(field, vmin, vmax, name="inferno"):
     """Build a Branca colormap.
 
-    For inferno: low value = dark, high = yellow. We flip when low value = "good"
-    (effective_p case) so that bad cells stay bright.
-
-    For spectral: low = red, high = blue. Flip when low value = "bad"
-    (mean_circuity / mean_excess case) so that good cells stay blue.
+    Convention across palettes: cells where the network is "good" (high p,
+    low circuity) should land on the cool/dark end. We flip per-palette to
+    keep that invariant.
     """
     if name == "spectral":
         stops = _SPECTRAL_STOPS
+        if field != "effective_p":
+            stops = list(reversed(stops))
+    elif name == "seismic_r":
+        # red at vmin, blue at vmax — natural alignment with effective_p
+        stops = _SEISMIC_R_STOPS
         if field != "effective_p":
             stops = list(reversed(stops))
     else:
@@ -204,7 +213,7 @@ if __name__ == "__main__":
     ap.add_argument("--zoom", type=int, default=None)
     ap.add_argument("--center", default=None,
                     help="lat,lon (overrides --city default)")
-    ap.add_argument("--cmap", default="inferno", choices=["inferno", "spectral"])
+    ap.add_argument("--cmap", default="inferno", choices=["inferno", "spectral", "seismic_r"])
     ap.add_argument("--city", default=None,
                     help="city key for default UTM, center, zoom")
     a = ap.parse_args()
