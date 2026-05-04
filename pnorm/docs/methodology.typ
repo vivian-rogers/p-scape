@@ -280,6 +280,7 @@ pins six fields:
   [`sf`], [San Francisco], [10N], [`us/california`], [12], [SF proper],
   [`chicago`], [Chicago, IL], [16N], [`us/illinois`], [11], [Loop + North Side],
   [`boston`], [Boston, MA], [19N], [`us/massachusetts`], [12], [Boston proper],
+  [`barcelona`], [Barcelona, ES], [31N], [`europe/spain`], [13], [Eixample + Old City + Gràcia],
 )
 
 Adding a new city is a single dict entry plus a tile build:
@@ -349,6 +350,107 @@ the same direction holds but the gap is much wider --- $0.62$ versus
 $0.97$. Manhattan one-way streets, the bridges/tunnels as the only
 inter-borough crossings, and the rivers as hard barriers all bite the
 car network specifically.
+
+= Cross-city comparison
+
+We ran the pipeline on five cities under fixed settings: car at $250 m$
+hex spacing × radii $\{1, 2, 3\} k m$ on the city's full bbox, foot at
+$50 m$ spacing × radii $\{200, 400, 800\} m$ on a tight downtown bbox.
+A summary at the longest radius for each mode:
+
+#table(
+  columns: (auto, auto, auto, auto, auto, auto, auto),
+  align: (left, right, right, right, right, right, right),
+  inset: 5pt,
+  stroke: 0.5pt + rgb("#ccc"),
+  table.header(
+    [*City*],
+    [*Car median* $p$ \ ($r=1 k m$)],
+    [*Car median* $p$ \ ($r=3 k m$)],
+    [*Foot median* $p$ \ ($r=800 m$)],
+    [*Foot* $p_(10)$ \ ($r=800 m$)],
+    [*Foot* $p_(90)$ \ ($r=800 m$)],
+    [*Note*],
+  ),
+  [Austin],    [0.51], [0.67], [0.89], [0.69], [0.99], [post-war grid + suburbs],
+  [Houston],   [0.59], [0.76], [0.91], [0.70], [1.00], [Inner Loop bbox; sprawl is outside],
+  [NYC],       [0.62], [0.68], [0.97], [0.89], [1.06], [Manhattan-tight bbox],
+  [SF],        [0.69], [0.82], [1.00], [0.95], [1.05], [strict grid + Market diagonal],
+  [Barcelona], [0.60], [0.77], [*1.07*], [*1.00*], [*1.11*], [Eixample + chamfered corners],
+)
+
+Several patterns are worth flagging:
+
+#set enum(numbering: "1.")
+
++ *Barcelona's Eixample is a structural outlier.* At a $10$-minute
+  walkshed, the *p-tenth percentile* of the Eixample/Old City bbox
+  reaches $p = 1.00$: at least $90%$ of cells beat a perfect
+  Manhattan grid. The median of $p = 1.07$ is consistent with the
+  empirical signature of Cerdà's $113 m × 113 m$ chamfered-octagon
+  blocks, which add a diagonal line of sight at every intersection.
+  We are recovering the geometric advantage that the urban-form
+  literature has attributed to Cerdà's plan since at least Solà-Morales
+  (1978) #footnote[Solà-Morales, M. de.
+  _Cerdà / Ensanche._ Universitat Politècnica de Catalunya, 1978.],
+  but reading it directly off the routing graph rather than off the
+  cadastral plan.
+
++ *Drivers and walkers diverge most in the densest cities.* In Austin
+  the median driver-walker gap (foot $p$ minus car $p$ at comparable
+  radii) is $0.38$. In NYC it is $0.35$. In Barcelona it is $0.47$ ---
+  the largest of the set. The walking grid in dense old European
+  cities is intentionally easier than the driving grid; the
+  one-way pattern, contraflow bike lanes, and the recent
+  _superilles_ closures all penalize cars without penalizing
+  walkers.
+
++ *SF has the highest car* $p$ *of the five.* Despite topographic
+  challenges, San Francisco's strict grid produces the most
+  Euclidean *driving* network in the set: $p = 0.69$ at $r = 1 k m$,
+  rising to $p = 0.82$ at $r = 3 k m$. The hills don't show up in
+  the metric because the metric is over network distance only;
+  vertical elevation isn't penalized.
+
++ *Houston's Inner Loop is grid-y; the sprawl is outside the bbox.*
+  Within I-610 we read $p = 0.59 / 0.76$ for car, slightly better
+  than Austin's metro. The well-known sprawl signature would emerge
+  at a wider bbox out to Beltway 8; we did not run it.
+
++ *Walking-radius gradient.* In every city, the median $p$ rises
+  monotonically with the ring radius. The interpretation: at small
+  $r$ the local detour pattern dominates (a single cul-de-sac
+  matters), while at large $r$ those detours average out and the
+  metric reads the city's freeway / arterial topology. Cities differ
+  most at small $r$: Austin foot at $r = 200 m$ is $p = 0.71$,
+  Barcelona at the same setting is $p = 0.92$, a $30%$ gap that
+  shrinks to half that by $r = 800 m$.
+
+#figure(
+  table(
+    columns: (auto, auto, auto, auto, auto, auto),
+    align: (left, right, right, right, right, right),
+    inset: 5pt,
+    stroke: 0.5pt + rgb("#ccc"),
+    table.header(
+      [*City*], [foot $r = 200 m$], [foot $r = 400 m$], [foot $r = 800 m$],
+      [car $r = 1 k m$], [car $r = 3 k m$],
+    ),
+    [Austin],    [0.71], [0.79], [0.89], [0.51], [0.67],
+    [Houston],   [0.76], [0.83], [0.91], [0.59], [0.76],
+    [NYC],       [0.84], [0.93], [0.97], [0.62], [0.68],
+    [SF],        [0.87], [0.95], [1.00], [0.69], [0.82],
+    [Barcelona], [0.92], [1.00], [1.07], [0.60], [0.77],
+  ),
+  caption: [
+    Median effective $p$ across radii and modes for the five cities
+    run to date. Cities are ordered by foot $p$ at $r = 800 m$.
+    Bold-text observations: Barcelona's foot grid above $p = 1$ at
+    every radius beyond $400 m$, SF's car grid converging on
+    $p approx 0.85$, the consistent gap of $0.3$--$0.5$ between foot
+    and car within a single city.
+  ]
+)
 
 = Caveats and future work
 

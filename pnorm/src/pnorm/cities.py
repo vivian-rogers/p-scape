@@ -84,6 +84,15 @@ CITIES: dict[str, City] = {
         center=(42.3601, -71.0589),
         default_zoom=12,
     ),
+    "barcelona": City(
+        key="barcelona",
+        name="Barcelona, Spain",
+        bbox=(2.10, 41.36, 2.22, 41.45),  # Eixample, Old City, Gràcia, Sants
+        utm_epsg=32631,  # UTM 31N
+        geofabrik_region="europe/spain",
+        center=(41.3874, 2.1686),  # Plaça de Catalunya
+        default_zoom=13,
+    ),
 }
 
 

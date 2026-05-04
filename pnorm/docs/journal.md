@@ -4,6 +4,39 @@ Append-only. Newest on top. Same format as parent.
 
 ---
 
+## 2026-05-03 — Houston, SF, Barcelona end-to-end; 5-city comparison
+**Who:** Adam + Claude Code (Opus 4.7)
+**Done:**
+- Added Barcelona to the catalog (UTM 31N, EPSG 32631; bbox covering Eixample + Old City + Gràcia).
+- Ran the same pipeline on Houston (Inner Loop bbox), SF, Barcelona. Same settings as Austin/NYC for direct comparability: car at 250 m × radii {1, 2, 3} km on the city bbox; foot at 50 m × radii {200, 400, 800} m on a tight downtown bbox.
+- Updated `docs/methodology.{typ,pdf}` with a cross-city comparison section + summary table.
+
+**Headline result — 5-city comparison, foot r=800 m, median p:**
+
+| city      | median p | p10  | p90  |
+|-----------|----------|------|------|
+| Austin    | 0.89     | 0.69 | 0.99 |
+| Houston   | 0.91     | 0.70 | 1.00 |
+| NYC       | 0.97     | 0.89 | 1.06 |
+| SF        | 1.00     | 0.95 | 1.05 |
+| Barcelona | **1.07** | **1.00** | **1.11** |
+
+Barcelona's Eixample is a structural outlier — at r=800 m the *p10* reaches 1.00, meaning ≥90% of cells beat a perfect Manhattan grid. We are recovering Cerdà's chamfered-octagon block geometry directly off the routing graph (the diagonal lines of sight at every intersection add an extra travel direction beyond pure rectilinear).
+
+**Foot vs car gap is widest in dense old cities.** Barcelona foot − car at comparable radii ≈ 0.47; NYC ≈ 0.35; Austin ≈ 0.38. One-way patterns, contraflow bike lanes, and the recent Barcelona _superilles_ all penalize cars without penalizing walkers.
+
+**Houston (Inner Loop only) is grid-y, not sprawl-y.** Median car p = 0.59 at r=1 km is comparable to NYC; the famous Houston sprawl is outside our bbox. A wider Houston run out to Beltway 8 would likely halve the metric.
+
+**Next:**
+- Wider Houston bbox to validate the "sprawl outside the loop" hypothesis.
+- One more European city — Paris (Haussmann boulevards) and Amsterdam (canal grid) are both natural extensions.
+- A stand-alone comparison-table renderer (single Python script that loads multiple npz files and prints a tidy stats table without the user assembling it by hand).
+
+**Blocked / open:**
+- Houston `houston_car_p.html` is 76 MB (28k cells per layer × 3 layers). Useable but slow on lower-end hardware. Consider downsampling for the visual layer while keeping the full grid for stats.
+
+---
+
 ## 2026-05-01 — Multi-city: catalog + NYC end-to-end
 **Who:** Adam + Claude Code (Opus 4.7)
 **Done:**
