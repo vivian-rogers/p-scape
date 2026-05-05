@@ -33,7 +33,9 @@ CITIES: dict[str, City] = {
     "austin": City(
         key="austin",
         name="Austin, TX",
-        bbox=(-97.88, 30.12, -97.58, 30.50),
+        # urban core, ~14x22 km; previous wider metro bbox (1260 km²) was too large
+        # for the unified walking grid at 75 m spacing.
+        bbox=(-97.80, 30.20, -97.65, 30.40),
         utm_epsg=32614,  # UTM 14N
         geofabrik_region="north-america/us/texas",
         center=(30.27, -97.73),
@@ -42,7 +44,8 @@ CITIES: dict[str, City] = {
     "nyc": City(
         key="nyc",
         name="New York City",
-        bbox=(-74.04, 40.68, -73.86, 40.83),  # Manhattan + adjacent boroughs
+        # Manhattan + Park Slope + LIC + Astoria + South Bronx; ~15x21 km
+        bbox=(-74.03, 40.66, -73.85, 40.85),
         utm_epsg=32618,  # UTM 18N
         geofabrik_region="north-america/us/new-york",
         center=(40.7589, -73.9857),  # Times Square
@@ -92,6 +95,28 @@ CITIES: dict[str, City] = {
         geofabrik_region="europe/spain",
         center=(41.3874, 2.1686),  # Plaça de Catalunya
         default_zoom=13,
+    ),
+    "dc": City(
+        key="dc",
+        name="Washington, DC",
+        # L'Enfant diamond + Adams Morgan + Capitol Hill + Anacostia +
+        # Arlington edge + inner Bethesda. Captures the radial diagonals.
+        bbox=(-77.13, 38.81, -76.94, 39.00),
+        utm_epsg=32618,  # UTM 18N (same as NYC; DC is at -77° W)
+        geofabrik_region="north-america/us/district-of-columbia",
+        center=(38.8951, -77.0364),  # White House-ish
+        default_zoom=12,
+    ),
+    "venice": City(
+        key="venice",
+        name="Venice, Italy",
+        # Historic islands only — cars can't reach island origins, so we
+        # only run foot for Venice.
+        bbox=(12.30, 45.42, 12.38, 45.46),
+        utm_epsg=32633,  # UTM 33N
+        geofabrik_region="europe/italy/nord-est",
+        center=(45.4408, 12.3155),  # Piazzale Roma — main island entry
+        default_zoom=14,
     ),
 }
 
