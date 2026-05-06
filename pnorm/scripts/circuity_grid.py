@@ -32,6 +32,16 @@ def run_grid(spacing_m, radius_m, n_dests, url, out_npz, bbox=AUSTIN_BBOX, inset
     mean_circ = np.full(n, np.nan)
     mean_exc = np.full(n, np.nan)
     n_valid = np.zeros(n, dtype=int)
+    origin_snap_m = np.full(n, np.nan)
+    bad_origin = np.zeros(n, dtype=bool)
+
+    # If the requested origin is in a road-free area (forest, water, deep
+    # private parcel) OSRM happily snaps to the nearest road, which can be
+    # very far away. Past `max_origin_snap_m` we consider the cell to have
+    # no honest origin and mark `bad_origin = True` (renderers paint these
+    # as p = 0). Default threshold = grid spacing — the snap moved us
+    # farther than to a neighboring cell.
+    max_origin_snap_m = float(spacing_m)
 
     max_snap_frac = 0.25
     for i in tqdm(range(n), desc="origins"):
@@ -48,6 +58,12 @@ def run_grid(spacing_m, radius_m, n_dests, url, out_npz, bbox=AUSTIN_BBOX, inset
             continue
         d_route = d_route[0]
         osnap_x, osnap_y = to_utm(src_snap[0, 0], src_snap[0, 1])
+        o_snap_offset = float(np.hypot(float(osnap_x) - xy[i, 0],
+                                       float(osnap_y) - xy[i, 1]))
+        origin_snap_m[i] = o_snap_offset
+        if o_snap_offset > max_origin_snap_m:
+            bad_origin[i] = True
+            continue  # don't even compute circuity — the origin isn't honest
         dsnap_x, dsnap_y = to_utm(dst_snap[:, 0], dst_snap[:, 1])
         dx, dy = to_utm(dests_ll[:, 0], dests_ll[:, 1])
         d_euc = np.hypot(np.asarray(dsnap_x) - float(osnap_x),
@@ -63,6 +79,11 @@ def run_grid(spacing_m, radius_m, n_dests, url, out_npz, bbox=AUSTIN_BBOX, inset
         mean_exc[i] = float((d_route[ok] - d_euc[ok]).mean())
         n_valid[i] = int(ok.sum())
 
+    n_bad = int(bad_origin.sum())
+    n_meas = int(np.isfinite(mean_circ).sum())
+    print(f"  cells: {n_meas} measured, {n_bad} bad-origin (>{max_origin_snap_m:.0f} m snap), "
+          f"{n - n_meas - n_bad} dropped (no valid rays)")
+
     out = Path(out_npz)
     out.parent.mkdir(parents=True, exist_ok=True)
     from pnorm.geo import current_utm_epsg
@@ -77,6 +98,9 @@ def run_grid(spacing_m, radius_m, n_dests, url, out_npz, bbox=AUSTIN_BBOX, inset
         radius_m=radius_m,
         n_dests=n_dests,
         utm_epsg=current_utm_epsg(),
+        origin_snap_m=origin_snap_m,
+        bad_origin=bad_origin,
+        max_origin_snap_m=max_origin_snap_m,
     )
     print(f"saved {out}")
     return out

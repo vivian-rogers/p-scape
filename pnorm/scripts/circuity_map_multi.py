@@ -79,7 +79,13 @@ def make_cmap(field, vmin, vmax, name="inferno"):
 
 def get_field_values(data, field):
     if field == "effective_p":
-        return p_of_circuity(data["mean_circuity"])
+        c = data["mean_circuity"]
+        p = p_of_circuity(c)
+        # bad_origin cells (rural / unrouteable) are explicitly p = 0.
+        if "bad_origin" in data.files:
+            bo = data["bad_origin"]
+            p = np.where(bo, 0.0, p)
+        return p
     return data[field]
 
 

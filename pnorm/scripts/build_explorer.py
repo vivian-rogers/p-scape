@@ -57,14 +57,23 @@ def load_layer(npz_path: Path) -> dict:
     c = d["mean_circuity"]
     spacing = float(d["spacing_m"])
     radius = float(d["radius_m"])
-    ok = np.isfinite(c)
-    p = p_of_circuity(c[ok])
-    valid_idx = np.where(ok)[0]
+    bad_origin = (
+        d["bad_origin"] if "bad_origin" in d.files else np.zeros(len(c), dtype=bool)
+    )
+    finite = np.isfinite(c)
+    keep = finite | bad_origin
+    p = np.full(len(c), np.nan)
+    if finite.any():
+        p[finite] = p_of_circuity(c[finite])
+    p[bad_origin] = 0.0  # rural / unrouteable cells: render as p = 0 (deep red)
+
     cells = []
-    for j, i in enumerate(valid_idx):
-        cells.append([round(float(ll[i, 1]), 5),  # lat
-                      round(float(ll[i, 0]), 5),  # lng
-                      round(float(p[j]), 3)])     # p
+    for i in np.where(keep)[0]:
+        if not np.isfinite(p[i]):
+            continue
+        cells.append([round(float(ll[i, 1]), 5),
+                      round(float(ll[i, 0]), 5),
+                      round(float(p[i]), 3)])
     return {
         "spacing_m": spacing,
         "radius_m": radius,
