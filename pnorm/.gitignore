@@ -1,4 +1,14 @@
-data/
+# data/ is mostly heavy intermediate artifacts (OSM extracts, OSRM tile
+# dirs, per-city HTML maps that exceed GitHub's 100 MB single-file limit).
+# We do commit:
+#   - the post-processed .npz grids (small, the actual research data)
+#   - the single-page explorer.html (so collaborators can preview without
+#     re-running the pipeline)
+# Everything else under data/ stays local.
+data/*
+!data/*.npz
+!data/explorer.html
+
 .venv/
 __pycache__/
 *.pyc
