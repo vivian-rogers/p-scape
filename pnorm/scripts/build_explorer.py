@@ -341,9 +341,10 @@ HTML_TEMPLATE = r"""<!doctype html>
     });
   })();
 
-  // Tiny overlap to close sub-pixel rasterization gaps; small enough that even
-  // when same-color cells overlap it doesn't read as a thicker line.
-  const HEX_OVERLAP = 1.002;
+  // Tiny overlap to close sub-pixel rasterization gaps. With the shared-canvas
+  // CSS-opacity approach below, overlaps don't compound, so this is purely a
+  // gap-closing knob — bump it up if you still see seams.
+  const HEX_OVERLAP = 1.015;
 
   function hexLatLngs(lat, lng, spacingM) {
     const r = spacingM / Math.sqrt(3) * HEX_OVERLAP;
