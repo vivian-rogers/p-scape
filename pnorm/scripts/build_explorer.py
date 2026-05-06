@@ -31,7 +31,6 @@ CITY_FOOT_PREFIX = {
     "houston":   "houston_foot_core",
     "sf":        "sf_foot_core",
     "barcelona": "barcelona_foot_core",
-    "venice":    "venice_foot",
 }
 CITY_CAR_PREFIX = {
     "austin":    "austin_car",
@@ -49,7 +48,6 @@ PRETTY = {
     "houston": "Houston, TX",
     "sf": "San Francisco",
     "barcelona": "Barcelona",
-    "venice": "Venice",
 }
 
 
@@ -260,6 +258,9 @@ HTML_TEMPLATE = r"""<!doctype html>
   </div>
   <div id="map"></div>
   <div id="info">Loading…</div>
+  <div id="zoomWarn" style="display:none; position:absolute; top:90px; left:50%; transform:translateX(-50%); z-index:999; background: rgba(255, 244, 200, 0.95); padding: 8px 14px; border-radius: 4px; box-shadow: 0 1px 6px rgba(0,0,0,0.18); font-size: 13px; color: #553;">
+    Zoom in for crisp rendering — hexes are sub-pixel at this zoom level.
+  </div>
   <div id="legend">
     <div class="label-P">P</div>
     <canvas id="legendCanvas" width="320" height="24"></canvas>
@@ -340,8 +341,12 @@ HTML_TEMPLATE = r"""<!doctype html>
     });
   })();
 
+  // Enlarge each hex by ~5 % so adjacent cells overlap by ~2.5 % on shared edges,
+  // covering sub-pixel rendering gaps. Invisible at any zoom but eliminates seams.
+  const HEX_OVERLAP = 1.05;
+
   function hexLatLngs(lat, lng, spacingM) {
-    const r = spacingM / Math.sqrt(3);
+    const r = spacingM / Math.sqrt(3) * HEX_OVERLAP;
     const cosLat = Math.cos(lat * Math.PI / 180);
     const dLat = r / 111320;
     const dLng = r / (111320 * cosLat);
@@ -351,6 +356,15 @@ HTML_TEMPLATE = r"""<!doctype html>
       out.push([lat + dLat * Math.sin(a), lng + dLng * Math.cos(a)]);
     }
     return out;
+  }
+
+  // Below this many pixels per hex, individual cells rasterize to <2 px and we
+  // get moiré. Suggest the user zoom in.
+  const MIN_PIXELS_PER_HEX = 4;
+  function pixelsPerHex(lat, spacingM) {
+    const z = map.getZoom();
+    const metersPerPixel = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, z);
+    return spacingM / metersPerPixel;
   }
 
   const map = L.map('map', { preferCanvas: true }).setView([39, -77], 4);
@@ -427,14 +441,29 @@ HTML_TEMPLATE = r"""<!doctype html>
       const [lat, lng, p] = cells[i];
       const verts = hexLatLngs(lat, lng, spacing);
       polys.push(L.polygon(verts, {
-        color: '#222',
-        weight: 0,
+        // matching stroke + fill at weight 1 covers any residual sub-pixel
+        // seams from canvas rasterization. Stroke opacity matches fill so
+        // the slider feels uniform.
+        color: pColor(p),
+        weight: 1,
+        opacity: opacity,
         fillColor: pColor(p),
         fillOpacity: opacity,
       }).bindTooltip(`p = ${p.toFixed(2)}`, { sticky: true }));
       pVals.push(p);
     }
     layerGroup = L.layerGroup(polys).addTo(map);
+
+    // Zoom-out warning. If hexes are smaller than ~4 px the rasterization
+    // can produce moiré that no amount of overlap fixes; suggest zooming in.
+    const ppx = pixelsPerHex(cells[0][0], spacing);
+    if (ppx < MIN_PIXELS_PER_HEX) {
+      const warn = document.getElementById('zoomWarn');
+      if (warn) warn.style.display = 'block';
+    } else {
+      const warn = document.getElementById('zoomWarn');
+      if (warn) warn.style.display = 'none';
+    }
 
     pVals.sort((a, b) => a - b);
     const median = pVals[Math.floor(pVals.length / 2)];
@@ -462,8 +491,17 @@ HTML_TEMPLATE = r"""<!doctype html>
     const o = parseInt(opacityPick.value, 10) / 100;
     opacityVal.textContent = `${opacityPick.value}%`;
     if (layerGroup) {
-      layerGroup.eachLayer(l => l.setStyle({ fillOpacity: o }));
+      layerGroup.eachLayer(l => l.setStyle({ fillOpacity: o, opacity: o }));
     }
+  });
+
+  map.on('zoomend', () => {
+    // refresh the zoom warning without re-rendering the layer
+    const city = cityPick.value, mode = modePick.value, r = parseInt(radiusPick.value, 10);
+    const data = PAYLOAD.layers[city + '__' + mode + '__' + r];
+    if (!data || !data.cells.length) return;
+    const ppx = pixelsPerHex(data.cells[0][0], data.spacing_m);
+    document.getElementById('zoomWarn').style.display = ppx < MIN_PIXELS_PER_HEX ? 'block' : 'none';
   });
 
   refreshRadiusDropdown();
