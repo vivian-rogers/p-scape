@@ -1,9 +1,10 @@
-"""Build a single self-contained HTML 'explorer' that lets the user pick city
-and mode (walking / driving) from one tab.
+"""Build a single self-contained HTML 'explorer' that lets the user pick city,
+mode (walking / driving), and ring radius.
 
-Reads the canonical `<city>_<mode>_r400.npz` (foot) and `<city>_<mode>_r2000.npz`
-(car) per city, resolves p(C) per cell, embeds everything inline as JSON, and
-emits a Leaflet page with two dropdowns + a big colorbar labeled "P".
+Loads every available `<city>_<mode>_r<R>.npz` (and the `_foot_core_` legacy
+naming for cities that predate the unified-bbox convention), resolves p(C)
+per cell, embeds everything inline as JSON, and emits a Leaflet page with
+three dropdowns + a big colorbar labeled "P".
 """
 
 from __future__ import annotations
@@ -18,22 +19,27 @@ from pnorm.lp_inversion import p_of_circuity
 
 OUT = Path("data/explorer.html")
 
-# Map (city, mode) → npz file. Some early cities used "_foot_core" suffix
-# instead of "_foot" because they predate the unified-bbox convention.
-DATASETS: dict[tuple[str, str], str] = {
-    ("austin", "foot"):    "austin_foot_r400.npz",
-    ("austin", "car"):     "austin_car_r2000.npz",
-    ("nyc", "foot"):       "nyc_foot_r400.npz",
-    ("nyc", "car"):        "nyc_car_r2000.npz",
-    ("dc", "foot"):        "dc_foot_r400.npz",
-    ("dc", "car"):         "dc_car_r2000.npz",
-    ("houston", "foot"):   "houston_foot_core_r400.npz",
-    ("houston", "car"):    "houston_car_r2000.npz",
-    ("sf", "foot"):        "sf_foot_core_r400.npz",
-    ("sf", "car"):         "sf_car_r2000.npz",
-    ("barcelona", "foot"): "barcelona_foot_core_r400.npz",
-    ("barcelona", "car"):  "barcelona_car_r2000.npz",
-    ("venice", "foot"):    "venice_foot_r400.npz",
+# Per-city filename pattern. Some early runs used "_foot_core_" instead of
+# "_foot_" because they predate the unified-bbox convention.
+FOOT_RADII = [200, 400, 800]
+CAR_RADII = [1000, 2000, 3000]
+
+CITY_FOOT_PREFIX = {
+    "austin":    "austin_foot",
+    "nyc":       "nyc_foot",
+    "dc":        "dc_foot",
+    "houston":   "houston_foot_core",
+    "sf":        "sf_foot_core",
+    "barcelona": "barcelona_foot_core",
+    "venice":    "venice_foot",
+}
+CITY_CAR_PREFIX = {
+    "austin":    "austin_car",
+    "nyc":       "nyc_car",
+    "dc":        "dc_car",
+    "houston":   "houston_car",
+    "sf":        "sf_car",
+    "barcelona": "barcelona_car",
 }
 
 PRETTY = {
@@ -70,19 +76,44 @@ def load_layer(npz_path: Path) -> dict:
 
 def main() -> None:
     layers: dict[str, dict] = {}
-    summary = []
-    for (city, mode), fname in DATASETS.items():
-        path = Path("data") / fname
-        if not path.exists():
-            print(f"  skip: {path} (not found)")
-            continue
-        layer = load_layer(path)
-        layers[f"{city}__{mode}"] = layer
-        ps = [c[2] for c in layer["cells"]]
-        summary.append((city, mode, len(ps), float(np.median(ps)) if ps else float("nan")))
-        print(f"  {city:<10} {mode:<5} cells={len(layer['cells']):>6}  spacing={layer['spacing_m']:.0f}m  median_p={float(np.median(ps)):.3f}")
+    cities_present = []
 
-    cities_present = sorted({c for (c, _) in DATASETS if any(k.startswith(c + "__") for k in layers)})
+    for city, prefix in CITY_FOOT_PREFIX.items():
+        any_layer = False
+        for r in FOOT_RADII:
+            path = Path("data") / f"{prefix}_r{r}.npz"
+            if path.exists():
+                key = f"{city}__foot__{r}"
+                layers[key] = load_layer(path)
+                any_layer = True
+        if any_layer:
+            cities_present.append(city)
+        for r in CAR_RADII:
+            prefix_car = CITY_CAR_PREFIX.get(city)
+            if prefix_car:
+                path = Path("data") / f"{prefix_car}_r{r}.npz"
+                if path.exists():
+                    key = f"{city}__car__{r}"
+                    layers[key] = load_layer(path)
+                    if not any_layer:
+                        cities_present.append(city)
+                        any_layer = True
+
+    cities_present = sorted(set(cities_present), key=lambda c: list(CITY_FOOT_PREFIX).index(c))
+
+    # Quick reporting + per-city radii lists
+    radii_for = {}
+    for city in cities_present:
+        for mode in ("foot", "car"):
+            rs = sorted(int(k.split("__")[2]) for k in layers if k.startswith(f"{city}__{mode}__"))
+            if rs:
+                radii_for[f"{city}__{mode}"] = rs
+
+    for k, l in layers.items():
+        ps = [c[2] for c in l["cells"]]
+        med = float(np.median(ps)) if ps else float("nan")
+        print(f"  {k:<28}  cells={len(l['cells']):>6}  spacing={l['spacing_m']:.0f}m  median_p={med:.3f}")
+
     centers = {
         city: {
             "lat": CITIES[city].center[0],
@@ -97,6 +128,7 @@ def main() -> None:
         "centers": centers,
         "pretty": {c: PRETTY[c] for c in cities_present},
         "cities": cities_present,
+        "radii": radii_for,
     }
     payload_json = json.dumps(payload, separators=(",", ":"))
 
@@ -105,7 +137,8 @@ def main() -> None:
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(html)
     size_mb = OUT.stat().st_size / 1024 / 1024
-    print(f"\nwrote {OUT}  ({size_mb:.1f} MB, {sum(len(l['cells']) for l in layers.values())} cells)")
+    total_cells = sum(len(l["cells"]) for l in layers.values())
+    print(f"\nwrote {OUT}  ({size_mb:.1f} MB, {len(layers)} layers, {total_cells:,} cells)")
 
 
 HTML_TEMPLATE = r"""<!doctype html>
@@ -218,6 +251,11 @@ HTML_TEMPLATE = r"""<!doctype html>
         <option value="foot">walking</option>
         <option value="car">driving</option>
       </select>
+      <label for="radiusPick">Radius</label>
+      <select id="radiusPick"></select>
+      <label for="opacityPick">Opacity</label>
+      <input id="opacityPick" type="range" min="0" max="100" step="1" value="65" style="width: 110px;">
+      <span id="opacityVal" style="font-size: 12px; color: #555; min-width: 32px; display: inline-block;">65%</span>
     </div>
   </div>
   <div id="map"></div>
@@ -245,7 +283,7 @@ HTML_TEMPLATE = r"""<!doctype html>
 <script>
   const PAYLOAD = __PAYLOAD__;
   const VMIN = 0, VMAX = 2;
-  // matplotlib-style seismic reversed: red at low, white in middle, blue at high.
+
   const PALETTE = [
     [0.00, [77, 0, 0]],
     [0.10, [163, 0, 0]],
@@ -281,7 +319,6 @@ HTML_TEMPLATE = r"""<!doctype html>
     return paletteAt((p - VMIN) / (VMAX - VMIN));
   }
 
-  // Draw the legend gradient.
   (function paintLegend() {
     const canvas = document.getElementById('legendCanvas');
     const ctx = canvas.getContext('2d');
@@ -290,7 +327,6 @@ HTML_TEMPLATE = r"""<!doctype html>
       ctx.fillStyle = paletteAt(x / (w - 1));
       ctx.fillRect(x, 0, 1, h);
     }
-    // overlay tick marks
     ctx.strokeStyle = '#444';
     ctx.lineWidth = 1;
     [0, 0.25, 0.5, 0.75, 1].forEach(t => {
@@ -305,7 +341,6 @@ HTML_TEMPLATE = r"""<!doctype html>
   })();
 
   function hexLatLngs(lat, lng, spacingM) {
-    // pointy-top hex: r = spacing / sqrt(3), corner angles π/6 + k·π/3
     const r = spacingM / Math.sqrt(3);
     const cosLat = Math.cos(lat * Math.PI / 180);
     const dLat = r / 111320;
@@ -318,16 +353,18 @@ HTML_TEMPLATE = r"""<!doctype html>
     return out;
   }
 
-  // Build the map.
   const map = L.map('map', { preferCanvas: true }).setView([39, -77], 4);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-    subdomains: 'abcd',
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19,
   }).addTo(map);
 
-  // Populate city dropdown.
   const cityPick = document.getElementById('cityPick');
+  const modePick = document.getElementById('modePick');
+  const radiusPick = document.getElementById('radiusPick');
+  const opacityPick = document.getElementById('opacityPick');
+  const opacityVal = document.getElementById('opacityVal');
+
   PAYLOAD.cities.forEach(c => {
     const opt = document.createElement('option');
     opt.value = c;
@@ -335,18 +372,48 @@ HTML_TEMPLATE = r"""<!doctype html>
     cityPick.appendChild(opt);
   });
 
+  function radiiFor(city, mode) {
+    return PAYLOAD.radii[city + '__' + mode] || [];
+  }
+
+  function defaultRadius(city, mode) {
+    const rs = radiiFor(city, mode);
+    if (!rs.length) return null;
+    // prefer the middle radius
+    return rs[Math.floor(rs.length / 2)];
+  }
+
+  function refreshRadiusDropdown(preserveR) {
+    const city = cityPick.value;
+    const mode = modePick.value;
+    const rs = radiiFor(city, mode);
+    radiusPick.innerHTML = '';
+    rs.forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = r;
+      opt.textContent = (mode === 'foot') ? `${r} m` : `${(r / 1000).toFixed(0)} km`;
+      radiusPick.appendChild(opt);
+    });
+    let pick = preserveR && rs.includes(preserveR) ? preserveR : defaultRadius(city, mode);
+    if (pick != null) radiusPick.value = pick;
+    radiusPick.disabled = rs.length === 0;
+  }
+
   let layerGroup = null;
 
-  function renderLayer(city, mode) {
+  function renderLayer() {
     if (layerGroup) { map.removeLayer(layerGroup); layerGroup = null; }
-    const key = city + '__' + mode;
-    const data = PAYLOAD.layers[key];
+    const city = cityPick.value;
+    const mode = modePick.value;
+    const r = parseInt(radiusPick.value, 10);
     const center = PAYLOAD.centers[city];
-    map.setView([center.lat, center.lng], center.zoom);
+    if (center) map.setView([center.lat, center.lng], center.zoom);
     const info = document.getElementById('info');
 
+    const key = city + '__' + mode + '__' + r;
+    const data = PAYLOAD.layers[key];
     if (!data) {
-      info.innerHTML = `<b>${PAYLOAD.pretty[city] || city}</b><br>${mode === 'foot' ? 'walking' : 'driving'} data not available.`;
+      info.innerHTML = `<b>${PAYLOAD.pretty[city] || city}</b><br>${mode === 'foot' ? 'walking' : 'driving'} not available for this radius.`;
       return;
     }
 
@@ -354,7 +421,8 @@ HTML_TEMPLATE = r"""<!doctype html>
     const spacing = data.spacing_m;
     const radius = data.radius_m;
     const polys = [];
-    let pSum = 0, pCount = 0, pVals = [];
+    let pVals = [];
+    const opacity = parseInt(opacityPick.value, 10) / 100;
     for (let i = 0; i < cells.length; i++) {
       const [lat, lng, p] = cells[i];
       const verts = hexLatLngs(lat, lng, spacing);
@@ -362,10 +430,8 @@ HTML_TEMPLATE = r"""<!doctype html>
         color: '#222',
         weight: 0,
         fillColor: pColor(p),
-        fillOpacity: 0.65,
+        fillOpacity: opacity,
       }).bindTooltip(`p = ${p.toFixed(2)}`, { sticky: true }));
-      pSum += p;
-      pCount += 1;
       pVals.push(p);
     }
     layerGroup = L.layerGroup(polys).addTo(map);
@@ -376,19 +442,32 @@ HTML_TEMPLATE = r"""<!doctype html>
     const p90 = pVals[Math.floor(pVals.length * 0.9)];
     info.innerHTML =
       `<b>${PAYLOAD.pretty[city] || city}</b> &middot; ${mode === 'foot' ? 'walking' : 'driving'}<br>` +
-      `<span class="stat-row">ring radius <b>${(radius / 1000).toFixed(1)} km</b>, ${cells.length.toLocaleString()} cells</span><br>` +
+      `<span class="stat-row">ring radius <b>${(radius >= 1000 ? (radius / 1000).toFixed(1) + ' km' : radius.toFixed(0) + ' m')}</b>, ${cells.length.toLocaleString()} cells</span><br>` +
       `<span class="stat-row">median p = <b>${median.toFixed(3)}</b></span><br>` +
       `<span class="stat-row">p10 / p90 = ${p10.toFixed(2)} / ${p90.toFixed(2)}</span>`;
   }
 
-  document.getElementById('cityPick').addEventListener('change', e => {
-    renderLayer(e.target.value, document.getElementById('modePick').value);
+  cityPick.addEventListener('change', () => {
+    const prev = parseInt(radiusPick.value, 10);
+    refreshRadiusDropdown(prev);
+    renderLayer();
   });
-  document.getElementById('modePick').addEventListener('change', e => {
-    renderLayer(document.getElementById('cityPick').value, e.target.value);
+  modePick.addEventListener('change', () => {
+    refreshRadiusDropdown();
+    renderLayer();
+  });
+  radiusPick.addEventListener('change', renderLayer);
+
+  opacityPick.addEventListener('input', () => {
+    const o = parseInt(opacityPick.value, 10) / 100;
+    opacityVal.textContent = `${opacityPick.value}%`;
+    if (layerGroup) {
+      layerGroup.eachLayer(l => l.setStyle({ fillOpacity: o }));
+    }
   });
 
-  renderLayer(PAYLOAD.cities[0], 'foot');
+  refreshRadiusDropdown();
+  renderLayer();
 </script>
 </body>
 </html>
