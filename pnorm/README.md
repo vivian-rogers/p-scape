@@ -1,18 +1,8 @@
 # pnorm
 
-> **Heads up — Vivian:** this is a *parallel* track to the work in `../src/isochrone_metric/`. The two coexist intentionally and don't share any state.
->
-> | | Parent track | This track (`pnorm/`) |
-> |---|---|---|
-> | Routing engine | Valhalla on `:8002` | OSRM (car `:5001`, foot `:5002`) |
-> | Tile data | `data/valhalla/` | `data/osrm-{car,foot}-<city>/` |
-> | Python package | `src/isochrone_metric/` | `pnorm/src/pnorm/` |
-> | Method | Riemannian ellipse fit per origin | Mean circuity → effective L^p exponent per origin |
-> | Output | Per-origin g(x) tensor field | Per-origin p(x) field (folium maps) |
->
-> Don't try to run both Docker stacks at once unless you have RAM to spare; they're independent and can be brought up/down separately. See `docs/setup.md` for the OSRM side.
-
-Sibling experiment to the parent `isochrone-metric` project. Same raw idea (travel-time geometry on a city), but this track **promotes p to a free parameter** of the local norm rather than committing to a Riemannian (p = 2) fit.
+OSRM-driven pipeline that derives an effective L^p exponent at every
+location in a city. We **promote p to a free parameter** of the local
+norm rather than committing to a Riemannian (p = 2) fit.
 
 ## Quickstart
 
@@ -56,4 +46,6 @@ folium center+zoom).  No other code changes needed.
 - [docs/setup.md](docs/setup.md) — Docker + OSRM + Austin tile build.
 - [docs/journal.md](docs/journal.md) — running log.
 
-Parent project's math doc (`../docs/math.md`) is **not** canonical here.
+_(An earlier sibling Riemannian-ellipse-fit track lived at the parent
+repo level; it was removed in May 2026. Earlier commits in this repo's
+history retain that code if you ever need it.)_

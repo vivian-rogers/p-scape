@@ -1,8 +1,8 @@
-# AGENTS.md — `pnorm/` track
+# AGENTS.md — `pnorm/`
 
-Read this first if you're picking up the `pnorm/` subproject. (The parent
-`isochrone-metric/` has its own `AGENTS.md` covering a separate track —
-they coexist; see [README.md](README.md) for the relationship.)
+Read this first if you're picking up the project. The whole pipeline
+lives under this `pnorm/` subdirectory; the repo root holds nothing but
+thin pointers to here.
 
 ## What this is, in one paragraph
 
@@ -207,13 +207,8 @@ Then build tiles and run as above. No other code changes needed.
   in scripts that re-fetch and re-build.
 - **Don't introduce a third routing engine, file format, or
   language.** OSRM + Python + folium is the stack.
-- **Don't break the parent track.** `src/isochrone_metric/` is a
-  separate, sibling project on its own pipeline (Valhalla, Riemannian
-  ellipse fits). The two coexist intentionally; the parent's `AGENTS.md`
-  documents that side.
-- **Push frequently.** Commits in this repo follow the conventions
-  in the parent's [CONTRIBUTING.md](../CONTRIBUTING.md): imperative
-  subject ≤ 72 chars, body explains *why* if non-obvious.
+- **Push frequently.** Commit conventions: imperative subject ≤ 72 chars,
+  body explains *why* if non-obvious.
 
 ## What we'd do next
 
@@ -229,6 +224,7 @@ The current open list (also in the journal):
    neighborhood organized around a 45° highway doesn't artificially
    read as low p. Generalizes `M(p)` to a rotated 2-D Minkowski
    functional.
-5. Reconcile with the Riemannian / ellipse fit on the parent track:
-   the ellipse is the special case `p = 2` of an anisotropic
-   Minkowski-norm fit that also recovers `p`.
+5. Per-cell rotation-and-anisotropy fit. The closed-form $M(p)$ assumes
+   axis-aligned isotropy; a neighborhood organized around a 45° highway
+   currently reads as low p for the wrong reason. Generalizing to a
+   rotated, anisotropic Minkowski functional is the next math step.
