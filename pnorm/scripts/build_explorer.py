@@ -341,9 +341,9 @@ HTML_TEMPLATE = r"""<!doctype html>
     });
   })();
 
-  // Enlarge each hex by ~5 % so adjacent cells overlap by ~2.5 % on shared edges,
-  // covering sub-pixel rendering gaps. Invisible at any zoom but eliminates seams.
-  const HEX_OVERLAP = 1.05;
+  // Tiny overlap to close sub-pixel rasterization gaps; small enough that even
+  // when same-color cells overlap it doesn't read as a thicker line.
+  const HEX_OVERLAP = 1.002;
 
   function hexLatLngs(lat, lng, spacingM) {
     const r = spacingM / Math.sqrt(3) * HEX_OVERLAP;
@@ -372,6 +372,13 @@ HTML_TEMPLATE = r"""<!doctype html>
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19,
   }).addTo(map);
+
+  // One shared canvas renderer for all hexes. We draw each polygon at
+  // fillOpacity=1 (no per-cell alpha) and then dim the whole canvas via
+  // CSS opacity on its DOM container. This avoids the "vein" pattern that
+  // appears when translucent neighbors overlap and compound their alpha.
+  const hexRenderer = L.canvas({ padding: 0.1 });
+  hexRenderer.addTo(map);
 
   const cityPick = document.getElementById('cityPick');
   const modePick = document.getElementById('modePick');
@@ -436,23 +443,19 @@ HTML_TEMPLATE = r"""<!doctype html>
     const radius = data.radius_m;
     const polys = [];
     let pVals = [];
-    const opacity = parseInt(opacityPick.value, 10) / 100;
     for (let i = 0; i < cells.length; i++) {
       const [lat, lng, p] = cells[i];
       const verts = hexLatLngs(lat, lng, spacing);
       polys.push(L.polygon(verts, {
-        // matching stroke + fill at weight 1 covers any residual sub-pixel
-        // seams from canvas rasterization. Stroke opacity matches fill so
-        // the slider feels uniform.
-        color: pColor(p),
-        weight: 1,
-        opacity: opacity,
+        renderer: hexRenderer,
+        stroke: false,
         fillColor: pColor(p),
-        fillOpacity: opacity,
+        fillOpacity: 1,
       }).bindTooltip(`p = ${p.toFixed(2)}`, { sticky: true }));
       pVals.push(p);
     }
     layerGroup = L.layerGroup(polys).addTo(map);
+    applyOpacity();
 
     // Zoom-out warning. If hexes are smaller than ~4 px the rasterization
     // can produce moiré that no amount of overlap fixes; suggest zooming in.
@@ -487,13 +490,13 @@ HTML_TEMPLATE = r"""<!doctype html>
   });
   radiusPick.addEventListener('change', renderLayer);
 
-  opacityPick.addEventListener('input', () => {
+  function applyOpacity() {
     const o = parseInt(opacityPick.value, 10) / 100;
     opacityVal.textContent = `${opacityPick.value}%`;
-    if (layerGroup) {
-      layerGroup.eachLayer(l => l.setStyle({ fillOpacity: o, opacity: o }));
-    }
-  });
+    const c = hexRenderer._container;
+    if (c) c.style.opacity = String(o);
+  }
+  opacityPick.addEventListener('input', applyOpacity);
 
   map.on('zoomend', () => {
     // refresh the zoom warning without re-rendering the layer
