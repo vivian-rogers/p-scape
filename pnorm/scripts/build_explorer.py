@@ -344,7 +344,7 @@ HTML_TEMPLATE = r"""<!doctype html>
   // Tiny overlap to close sub-pixel rasterization gaps. With the shared-canvas
   // CSS-opacity approach below, overlaps don't compound, so this is purely a
   // gap-closing knob — bump it up if you still see seams.
-  const HEX_OVERLAP = 1.015;
+  const HEX_OVERLAP = 1.03;
 
   function hexLatLngs(lat, lng, spacingM) {
     const r = spacingM / Math.sqrt(3) * HEX_OVERLAP;
