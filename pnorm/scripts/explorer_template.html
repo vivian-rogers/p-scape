@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Isochrome — how grid-like is your neighborhood?</title>
+<title>p-scape — how grid-like is your neighborhood?</title>
 <meta name="description" content="A field guide to street geometry. Six cities, block by block.">
-<meta property="og:title" content="Isochrome — how grid-like is your neighborhood?">
+<meta property="og:title" content="p-scape — how grid-like is your neighborhood?">
 <meta property="og:description" content="A 5-minute walk in Barcelona reaches twice the ground of a 5-minute walk in Houston. We measured this for six cities, block by block.">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
@@ -429,9 +429,9 @@
 <div id="app">
   <header id="topbar">
     <div class="brand">
-      <div class="brand-mark">◆</div>
+      <div class="brand-mark" style="font-family:'Newsreader',serif;font-style:italic;">p</div>
       <div>
-        <div class="brand-name">Isochrome</div>
+        <div class="brand-name">p-scape</div>
       </div>
       <div class="brand-tagline">A field guide to street geometry</div>
     </div>
@@ -536,7 +536,7 @@
 <div class="intro-back" id="introBack">
   <div class="intro-card">
     <div class="intro-head">
-      <div class="intro-eyebrow">Isochrome · A field guide to street geometry</div>
+      <div class="intro-eyebrow">p-scape · A field guide to street geometry</div>
       <h1 class="intro-h1">
         Some streets <span class="em-hot">get you there</span>.<br>
         Others make you <span class="em-cold">turn a lot</span>.
@@ -1024,7 +1024,7 @@ document.getElementById('shareBtn').addEventListener('click', async () => {
   const url = location.href;
   try {
     if (navigator.share) {
-      await navigator.share({ title: 'Isochrome', text: 'How grid-like is your neighborhood?', url });
+      await navigator.share({ title: 'p-scape', text: 'How grid-like is your neighborhood?', url });
     } else {
       await navigator.clipboard.writeText(url);
       const t = document.getElementById('toast');
@@ -1035,7 +1035,7 @@ document.getElementById('shareBtn').addEventListener('click', async () => {
 
 // ────────────── Intro overlay ──────────────
 const introBack = document.getElementById('introBack');
-function hideIntro() { introBack.classList.add('hidden'); localStorage.setItem('isochrome_seen', '1'); }
+function hideIntro() { introBack.classList.add('hidden'); localStorage.setItem('pscape_seen', '1'); }
 document.getElementById('introSkip').addEventListener('click', hideIntro);
 document.getElementById('introStart').addEventListener('click', () => {
   hideIntro();
@@ -1066,7 +1066,7 @@ function boot() {
   }
 
   // Show intro for first-timers (and when no permalink view present)
-  if (localStorage.getItem('isochrome_seen') !== '1' && !(link && link.v)) {
+  if (localStorage.getItem('pscape_seen') !== '1' && !(link && link.v)) {
     /* keep visible */
   } else {
     introBack.classList.add('hidden');
