@@ -23,7 +23,7 @@ SENTINEL = "/*__PAYLOAD_JSON__*/null"
 
 # Per-city filename pattern. Some early runs used "_foot_core_" instead of
 # "_foot_" because they predate the unified-bbox convention.
-FOOT_RADII = [200, 400, 800]
+FOOT_RADII = [200, 400, 800, 1600]
 CAR_RADII = [1000, 2000, 3000]
 
 CITY_FOOT_PREFIX = {
