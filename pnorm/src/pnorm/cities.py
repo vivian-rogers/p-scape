@@ -90,11 +90,28 @@ CITIES: dict[str, City] = {
     "barcelona": City(
         key="barcelona",
         name="Barcelona, Spain",
-        bbox=(2.10, 41.36, 2.22, 41.45),  # Eixample, Old City, Gràcia, Sants
+        # Wider Barcelona: W to Les Corts/Pedralbes (~2.08), E to Sant Adrià
+        # (~2.24, captures 22@/Diagonal Mar/Forum + a sliver of Badalona),
+        # N to Horta-Guinardó ridge. Gives the Cerdà grid lots of room while
+        # still including older industrial fringe and car-oriented W
+        # neighborhoods for contrast. ~16 × 11 km ≈ 178 km².
+        bbox=(2.08, 41.36, 2.24, 41.46),
         utm_epsg=32631,  # UTM 31N
         geofabrik_region="europe/spain",
         center=(41.3874, 2.1686),  # Plaça de Catalunya
-        default_zoom=13,
+        default_zoom=12,
+    ),
+    "paris": City(
+        key="paris",
+        name="Paris, France",
+        # Intra-périphérique plus inner banlieue (Boulogne-Billancourt,
+        # Levallois, Saint-Ouen, Pantin, Vincennes, Issy). ~16 × 12 km ≈
+        # 192 km².
+        bbox=(2.23, 48.81, 2.45, 48.92),
+        utm_epsg=32631,  # UTM 31N
+        geofabrik_region="europe/france/ile-de-france",
+        center=(48.857, 2.347),  # Notre-Dame
+        default_zoom=12,
     ),
     "dc": City(
         key="dc",

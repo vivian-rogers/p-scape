@@ -37,11 +37,15 @@ def run_grid(spacing_m, radius_m, n_dests, url, out_npz, bbox=AUSTIN_BBOX, inset
 
     # If the requested origin is in a road-free area (forest, water, deep
     # private parcel) OSRM happily snaps to the nearest road, which can be
-    # very far away. Past `max_origin_snap_m` we consider the cell to have
-    # no honest origin and mark `bad_origin = True` (renderers paint these
-    # as p = 0). Default threshold = grid spacing — the snap moved us
-    # farther than to a neighboring cell.
-    max_origin_snap_m = float(spacing_m)
+    # very far away. We reject the cell if either:
+    #   (1) the origin snap moves more than min(spacing_m, 100 m) — in
+    #       sparse-network regions a 250 m car snap is a city block away;
+    #       cap the absolute distance regardless of spacing, or
+    #   (2) fewer than 50 % of the destinations route successfully — the
+    #       origin may have snapped to a small disconnected component.
+    # Either trip flips `bad_origin = True` and the cell renders at p = 0.
+    max_origin_snap_m = float(min(spacing_m, 100.0))
+    min_valid_rays = max(3, int(round(n_dests * 0.5)))
 
     max_snap_frac = 0.25
     for i in tqdm(range(n), desc="origins"):
@@ -63,7 +67,7 @@ def run_grid(spacing_m, radius_m, n_dests, url, out_npz, bbox=AUSTIN_BBOX, inset
         origin_snap_m[i] = o_snap_offset
         if o_snap_offset > max_origin_snap_m:
             bad_origin[i] = True
-            continue  # don't even compute circuity — the origin isn't honest
+            continue  # origin isn't on a road within tolerance
         dsnap_x, dsnap_y = to_utm(dst_snap[:, 0], dst_snap[:, 1])
         dx, dy = to_utm(dests_ll[:, 0], dests_ll[:, 1])
         d_euc = np.hypot(np.asarray(dsnap_x) - float(osnap_x),
@@ -72,12 +76,15 @@ def run_grid(spacing_m, radius_m, n_dests, url, out_npz, bbox=AUSTIN_BBOX, inset
                             np.asarray(dsnap_y) - np.asarray(dy))
         bad = snap_off > max_snap_frac * radius_m
         ok = np.isfinite(d_route) & (d_euc > 0) & ~bad
-        if ok.sum() < 3:
+        n_valid[i] = int(ok.sum())
+        if ok.sum() < min_valid_rays:
+            # Too few destinations route successfully — origin is on an
+            # island in the routing graph. Same flag as bad-snap origins.
+            bad_origin[i] = True
             continue
         circ = d_route[ok] / d_euc[ok]
         mean_circ[i] = float(circ.mean())
         mean_exc[i] = float((d_route[ok] - d_euc[ok]).mean())
-        n_valid[i] = int(ok.sum())
 
     n_bad = int(bad_origin.sum())
     n_meas = int(np.isfinite(mean_circ).sum())
