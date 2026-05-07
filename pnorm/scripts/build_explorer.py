@@ -32,7 +32,8 @@ CITY_FOOT_PREFIX = {
     "dc":        "dc_foot",
     "houston":   "houston_foot_core",
     "sf":        "sf_foot_core",
-    "barcelona": "barcelona_foot_core",
+    "barcelona": "barcelona_foot",
+    "paris":     "paris_foot",
 }
 CITY_CAR_PREFIX = {
     "austin":    "austin_car",
@@ -41,6 +42,7 @@ CITY_CAR_PREFIX = {
     "houston":   "houston_car",
     "sf":        "sf_car",
     "barcelona": "barcelona_car",
+    "paris":     "paris_car",
 }
 
 PRETTY = {
@@ -50,6 +52,7 @@ PRETTY = {
     "houston": "Houston, TX",
     "sf": "San Francisco",
     "barcelona": "Barcelona",
+    "paris": "Paris",
 }
 
 
