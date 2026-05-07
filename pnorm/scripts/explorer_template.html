@@ -91,6 +91,38 @@
     position: absolute; inset: 0; opacity: 0; cursor: pointer; appearance: none; border: 0;
     font-size: 16px; /* prevents iOS auto-zoom */
   }
+  .chip-slider {
+    padding-right: 10px;
+    cursor: default;
+  }
+  .chip-range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 90px;
+    height: 4px;
+    background: var(--paper-3);
+    border-radius: 2px;
+    outline: none;
+    margin: 0 4px;
+    cursor: pointer;
+  }
+  .chip-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: 2px solid var(--paper);
+    cursor: pointer;
+  }
+  .chip-range::-moz-range-thumb {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: 2px solid var(--paper);
+    cursor: pointer;
+  }
+  .chip-value-narrow { font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
   .chip-share {
     background: var(--ink); color: var(--paper); border-color: var(--ink);
   }
@@ -207,6 +239,24 @@
     width: min(560px, calc(100vw - 36px));
     box-shadow: 0 10px 30px rgba(15, 15, 15, 0.08);
   }
+  .legend-head { margin-bottom: 8px; }
+  .legend-field {
+    font-family: "Newsreader", "Times New Roman", serif;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .legend-field i { font-style: italic; }
+  .legend-sub {
+    margin-top: 4px;
+    font-size: 11.5px;
+    line-height: 1.35;
+    color: var(--ink-3);
+    max-width: 460px;
+  }
+  .legend-sub sup { font-size: 0.75em; }
   .legend-title {
     font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
     color: var(--mute); font-weight: 700;
@@ -408,6 +458,20 @@
         <span class="chip-caret">▾</span>
         <select class="native" id="radiusPick"></select>
       </label>
+      <label class="chip">
+        <span class="chip-label">Field</span>
+        <span class="chip-value" id="chipField">effective <i>p</i></span>
+        <span class="chip-caret">▾</span>
+        <select class="native" id="fieldPick">
+          <option value="p">effective p</option>
+          <option value="circuity">circuity</option>
+        </select>
+      </label>
+      <label class="chip chip-slider" title="Layer opacity">
+        <span class="chip-label">Opacity</span>
+        <input class="chip-range" id="opacityPick" type="range" min="0" max="100" value="70">
+        <span class="chip-value chip-value-narrow" id="chipOpacity">70%</span>
+      </label>
       <button class="chip chip-icon" id="tourBtn" title="Take the tour">↶</button>
       <button class="chip chip-share" id="shareBtn">↗ Share</button>
     </div>
@@ -448,23 +512,19 @@
     <div class="zoom-warn" id="zoomWarn">Zoom in — hexes are sub-pixel here.</div>
 
     <div class="legend" id="legend">
-      <div class="legend-title">
-        <span>How geometric is the street network?</span>
-        <em>effective <i>p</i></em>
+      <div class="legend-head">
+        <div class="legend-field" id="legendField">effective <i>p</i></div>
+        <div class="legend-sub" id="legendSub">L<sup>p</sup>-norm exponent best-fit to local routing distances. Lower = network forces detour; higher = travel approaches Euclidean.</div>
       </div>
       <div class="legend-strip" id="legendStrip">
         <div class="legend-tick" style="left:0%"></div>
-        <div class="legend-tick" style="left:25%"></div>
         <div class="legend-tick major" style="left:50%"></div>
-        <div class="legend-tick" style="left:75%"></div>
         <div class="legend-tick" style="left:100%"></div>
       </div>
       <div class="legend-anchors">
-        <div class="legend-anchor" style="left:0%"><span class="num">0.0</span>cul-de-sac</div>
-        <div class="legend-anchor" style="left:25%"><span class="num">0.5</span>winding</div>
-        <div class="legend-anchor" style="left:50%"><span class="num">1.0</span>perfect grid</div>
-        <div class="legend-anchor" style="left:75%"><span class="num">1.5</span>diagonals</div>
-        <div class="legend-anchor" style="left:100%"><span class="num">2.0</span>straight-line</div>
+        <div class="legend-anchor" style="left:0%"><span class="num" id="anchorL">0.0</span>cul-de-sac hell</div>
+        <div class="legend-anchor" style="left:50%"><span class="num" id="anchorM">1.0</span>street-grid</div>
+        <div class="legend-anchor" style="left:100%"><span class="num" id="anchorR">2.0</span>euclidean</div>
       </div>
     </div>
 
@@ -580,13 +640,62 @@ function paletteAt(t) {
 }
 function pColor(p) { return isFinite(p) ? paletteAt((p - VMIN) / (VMAX - VMIN)) : '#888'; }
 
-// Paint legend strip
+// Palette goes red(t=0) → paper(t=0.5) → deep-blue(t=1).
+// For p we map p=0→t=0, p=1→t=0.5, p=2→t=1 (linear).
+// For circuity we map circuity=2.5+→t=0 (red, sprawl),
+// circuity=4/π≈1.273→t=0.5 (paper, Manhattan grid), circuity=1.0→t=1 (blue, Euclidean),
+// piecewise so the grid mark sits at the colorbar midline.
+const GRID_C = 4 / Math.PI; // 1.27324...
+function normalize(value, field) {
+  if (field === 'circuity') {
+    if (!isFinite(value)) return 0;
+    if (value <= 1.0) return 1;
+    if (value >= 2.5) return 0;
+    if (value <= GRID_C) return 1 - (value - 1) / (GRID_C - 1) * 0.5;
+    return 0.5 - (value - GRID_C) / (2.5 - GRID_C) * 0.5;
+  }
+  // 'p' — linear in [0, 2]
+  return Math.max(0, Math.min(1, value / 2));
+}
+function colorFor(value, field) {
+  return isFinite(value) ? paletteAt(normalize(value, field)) : '#888';
+}
+
+// Paint legend strip — palette is the same for either field; only the
+// anchor numbers under the strip change.
 (function paintLegend() {
   const stops = [];
   for (let i = 0; i <= 20; i++) stops.push(`${paletteAt(i/20)} ${i*5}%`);
   document.getElementById('legendStrip').style.background =
     `linear-gradient(to right, ${stops.join(', ')})`;
 })();
+
+// Field-aware copy for the bottom legend.
+const FIELD_COPY = {
+  p: {
+    name: 'effective <i>p</i>',
+    sub: 'L<sup>p</sup>-norm exponent best-fit to local routing distances. ' +
+         'Lower = network forces detour; higher = travel approaches Euclidean.',
+    anchors: ['0.0', '1.0', '2.0'],
+    chip: 'effective <i>p</i>',
+  },
+  circuity: {
+    name: 'circuity',
+    sub: 'Mean network distance ÷ straight-line distance, averaged over a ring of destinations. ' +
+         'A perfect grid averages 4/π ≈ 1.273; Euclidean is 1.0.',
+    anchors: ['2.5+', '1.27', '1.00'],
+    chip: 'circuity',
+  },
+};
+function applyFieldCopy(field) {
+  const c = FIELD_COPY[field];
+  document.getElementById('legendField').innerHTML = c.name;
+  document.getElementById('legendSub').innerHTML = c.sub;
+  document.getElementById('anchorL').textContent = c.anchors[0];
+  document.getElementById('anchorM').textContent = c.anchors[1];
+  document.getElementById('anchorR').textContent = c.anchors[2];
+  document.getElementById('chipField').innerHTML = c.chip;
+}
 
 // ────────────── Hex geometry (preserved from research version) ──────────────
 const HEX_OVERLAP = 1.03;
@@ -623,12 +732,15 @@ const hexRenderer = L.canvas({ padding: 0.1 });
 hexRenderer.addTo(map);
 
 // ────────────── Controls ──────────────
-const cityPick   = document.getElementById('cityPick');
-const modePick   = document.getElementById('modePick');
-const radiusPick = document.getElementById('radiusPick');
-const chipCity   = document.getElementById('chipCity');
-const chipMode   = document.getElementById('chipMode');
-const chipRadius = document.getElementById('chipRadius');
+const cityPick    = document.getElementById('cityPick');
+const modePick    = document.getElementById('modePick');
+const radiusPick  = document.getElementById('radiusPick');
+const fieldPick   = document.getElementById('fieldPick');
+const opacityPick = document.getElementById('opacityPick');
+const chipCity    = document.getElementById('chipCity');
+const chipMode    = document.getElementById('chipMode');
+const chipRadius  = document.getElementById('chipRadius');
+const chipOpacity = document.getElementById('chipOpacity');
 
 PAYLOAD.cities.forEach(c => {
   const opt = document.createElement('option');
@@ -767,16 +879,20 @@ function renderLayer(opts = {}) {
   }
 
   const cells = data.cells, spacing = data.spacing_m;
+  const field = fieldPick.value;  // 'p' | 'circuity'
   const polys = [];
   const ps = [];
   for (let i = 0; i < cells.length; i++) {
-    const [lat, lng, p] = cells[i];
+    const row = cells[i];
+    const lat = row[0], lng = row[1], p = row[2];
+    const c = (row.length > 3) ? row[3] : NaN;  // backward-compat with old 3-tuples
+    const value = field === 'circuity' ? c : p;
     const verts = hexLatLngs(lat, lng, spacing);
     const poly = L.polygon(verts, {
       renderer: hexRenderer, stroke: false,
-      fillColor: pColor(p), fillOpacity: 1,
+      fillColor: colorFor(value, field), fillOpacity: 1,
     });
-    poly._p = p; poly._lat = lat; poly._lng = lng;
+    poly._p = p; poly._c = c; poly._lat = lat; poly._lng = lng;
     poly.on('mousemove', () => updateHover(p, lat, lng));
     poly.on('mouseover', () => updateHover(p, lat, lng));
     polys.push(poly);
@@ -850,10 +966,13 @@ function updateHover(p, lat, lng) {
   hoverStats.style.display = 'grid';
 }
 
-// ────────────── Opacity (fixed at 65% — hidden from main UI) ──────────────
+// ────────────── Opacity (slider-controlled) ──────────────
 function applyOpacity() {
   const c = hexRenderer._container;
-  if (c) c.style.opacity = '0.7';
+  if (!c) return;
+  const o = (parseInt(opacityPick.value, 10) || 0) / 100;
+  c.style.opacity = String(o);
+  if (chipOpacity) chipOpacity.textContent = `${opacityPick.value}%`;
 }
 
 // ────────────── Wiring ──────────────
@@ -864,6 +983,14 @@ cityPick.addEventListener('change', () => {
 });
 modePick.addEventListener('change', () => { refreshRadiusDropdown(); renderLayer(); });
 radiusPick.addEventListener('change', () => renderLayer({ preserveView: true }));
+fieldPick.addEventListener('change', () => {
+  applyFieldCopy(fieldPick.value);
+  renderLayer({ preserveView: true });
+});
+opacityPick.addEventListener('input', applyOpacity);
+
+// First paint of the field-aware copy (legend + chip)
+applyFieldCopy(fieldPick.value);
 
 map.on('zoomend', () => {
   const city = cityPick.value, mode = modePick.value, r = parseInt(radiusPick.value, 10);

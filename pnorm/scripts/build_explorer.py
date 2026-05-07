@@ -68,6 +68,10 @@ def load_layer(npz_path: Path) -> dict:
     if finite.any():
         p[finite] = p_of_circuity(c[finite])
     p[bad_origin] = 0.0  # rural / unrouteable cells: render as p = 0 (deep red)
+    # Pair each cell with the matching circuity value so the explorer can
+    # toggle the field at view time. Bad-origin cells get a sentinel
+    # 5.0 (off the chart on the deep-red end) so the visual matches p=0.
+    circ = np.where(finite, c, 5.0)
 
     cells = []
     for i in np.where(keep)[0]:
@@ -75,7 +79,8 @@ def load_layer(npz_path: Path) -> dict:
             continue
         cells.append([round(float(ll[i, 1]), 5),
                       round(float(ll[i, 0]), 5),
-                      round(float(p[i]), 3)])
+                      round(float(p[i]), 3),
+                      round(float(circ[i]), 3)])
     return {
         "spacing_m": spacing,
         "radius_m": radius,
