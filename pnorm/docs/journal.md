@@ -4,6 +4,30 @@ Append-only. Newest on top. Same format as parent.
 
 ---
 
+## 2026-05-06 — "Isochrome" redesign via Claude Design; build script reads external template
+**Who:** Adam + Claude Code (Opus 4.7)
+**Done:**
+- Adam took the existing `data/explorer.html` to Claude Design (research preview at claude.ai, Opus 4.7 vision), iterated on a beautiful end-user-facing redesign branded "Isochrome — A field guide to street geometry". Warm-paper palette, Space Grotesk + Newsreader + JetBrains Mono type, chip-style controls, intro overlay with Houston/Manhattan/Barcelona tour cards, hover card with effective-p + percentile, mobile-aware layout.
+- Saved the Claude Design output as `scripts/explorer_template.html`, swapping its inline placeholder data for a single injection sentinel `/*__PAYLOAD_JSON__*/null`. Template is 39 KB.
+- Rewrote `scripts/build_explorer.py`: dropped the embedded `HTML_TEMPLATE` raw-string (470 lines), now reads `scripts/explorer_template.html` from disk and injects the payload at the sentinel. Payload shape unchanged — `{layers, cities, pretty, centers, radii}` already matched what Claude Design's comment block specified, so no logic changes were needed.
+- File went from 521 → 150 lines. Rebuild verified: 36 layers, 620,144 cells, 15.8 MB output.
+
+**Why:** Adam's guiding star for the project is a viral, friendly, end-user web tool (eventually hosted, eventually with neighborhood-picker / business-siting use cases). Vivian's is the arXiv paper. Both visions share the same artifact + same data pipeline; the design split keeps the explorer presentation editable in Claude Design without forking from Vivian's reproducible-from-data pipeline. To re-skin in the future: edit `scripts/explorer_template.html` (or replace it with a fresh Claude Design export, preserving the sentinel), then rerun `uv run python scripts/build_explorer.py`.
+
+**Caveats / known cosmetic issues to address next session:**
+- Intro tour cards have hardcoded `p̄ ≈ 0.62 / 1.04 / 1.18` for Houston / Manhattan / Barcelona — Claude Design's placeholder copy, not yet wired to real data. The real medians from this build are: Houston car r=1km = 0.59, NYC foot r=800m = 0.92, Barcelona foot r=800m = 1.07. Decide whether to wire live or hand-curate to keep the tour copy clean.
+- Claude Design's placeholder used city keys `new_york` / `washington_dc`; our `cities.py` uses `nyc` / `dc`. Dropdowns are populated from real keys so it works, but if/when we rename for the public-facing version, do it in `src/pnorm/cities.py` + `PRETTY` in `build_explorer.py`.
+
+**Next:**
+- Adam will look at the result, give visual/UX feedback, and we'll iterate — either back through Claude Design for visual changes or directly in code for behavior changes.
+- Once the design is settled: host it (GitHub Pages would do — single self-contained HTML, no backend). That's the precondition for the viral-tool track.
+- Open queue from prior journal entries still stands (wider Houston bbox, Paris/Amsterdam additions, cross-city comparison-table renderer, per-cell rotation+anisotropy fit).
+
+**Blocked / open:**
+- None.
+
+---
+
 ## 2026-05-03 — Houston, SF, Barcelona end-to-end; 5-city comparison
 **Who:** Adam + Claude Code (Opus 4.7)
 **Done:**

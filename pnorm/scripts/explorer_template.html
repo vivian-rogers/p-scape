@@ -1,0 +1,951 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Isochrome — how grid-like is your neighborhood?</title>
+<meta name="description" content="A field guide to street geometry. Six cities, block by block.">
+<meta property="og:title" content="Isochrome — how grid-like is your neighborhood?">
+<meta property="og:description" content="A 5-minute walk in Barcelona reaches twice the ground of a 5-minute walk in Houston. We measured this for six cities, block by block.">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper:    #fef9ee;
+    --paper-2:  #f6efde;
+    --paper-3:  #ebe2c9;
+    --ink:      #0f0f0f;
+    --ink-2:    #2a2a2a;
+    --ink-3:    #5a5446;
+    --mute:     #8a8475;
+    --rule:     #d6cfba;
+    --hot:      #ff5d3a;       /* sprawl side accent */
+    --cold:     #3052f5;       /* grid side accent */
+    --hot-ink:  #c33616;
+    --cold-ink: #1f3bbd;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; background: var(--paper); color: var(--ink);
+    font-family: "Space Grotesk", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+    overscroll-behavior: none; }
+
+  /* ───────────── App shell ───────────── */
+  #app { display: grid; grid-template-rows: auto 1fr; height: 100dvh; height: 100vh; min-height: 0; }
+
+  /* ───────────── Top bar ───────────── */
+  #topbar {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 22px;
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+    z-index: 800;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .brand-mark {
+    width: 26px; height: 26px; flex-shrink: 0;
+    background: var(--ink); color: var(--paper);
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 6px; font-weight: 700; font-size: 14px;
+    font-family: "Space Grotesk";
+  }
+  .brand-name {
+    font-size: 18px; font-weight: 700; letter-spacing: -0.02em;
+  }
+  .brand-tagline {
+    font-family: "Newsreader", Georgia, serif;
+    font-size: 14px; font-style: italic; color: var(--ink-3);
+    margin-left: 4px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  @media (max-width: 720px) { .brand-tagline { display: none; } }
+
+  /* ── Control chip group ── */
+  .chips { display: flex; gap: 8px; align-items: center; justify-self: end; flex-wrap: wrap; justify-content: flex-end; }
+  .chip {
+    background: var(--paper-2);
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    padding: 6px 12px 6px 12px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 600; color: var(--ink);
+    cursor: pointer; user-select: none;
+    transition: background .15s, border-color .15s;
+    line-height: 1;
+    position: relative;
+  }
+  .chip:hover { background: var(--paper-3); }
+  .chip-label {
+    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--mute); font-weight: 600;
+  }
+  .chip-value { font-weight: 700; }
+  .chip-caret { color: var(--mute); font-size: 10px; margin-left: 2px; }
+  .chip select.native {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; appearance: none; border: 0;
+    font-size: 16px; /* prevents iOS auto-zoom */
+  }
+  .chip-share {
+    background: var(--ink); color: var(--paper); border-color: var(--ink);
+  }
+  .chip-share:hover { background: #1f1f1f; }
+  .chip-icon { background: var(--paper-2); padding: 6px 9px; }
+  @media (max-width: 720px) {
+    #topbar { padding: 10px 12px; grid-template-columns: auto 1fr; gap: 10px; }
+    .brand-name { font-size: 16px; }
+    .chips { grid-column: 1 / -1; padding-bottom: 2px; overflow-x: auto;
+             flex-wrap: nowrap; justify-content: flex-start;
+             scrollbar-width: none; -ms-overflow-style: none; }
+    .chips::-webkit-scrollbar { display: none; }
+    .chip { flex-shrink: 0; }
+  }
+
+  /* ───────────── Stage ───────────── */
+  #stage { position: relative; min-height: 0; }
+  #map { position: absolute; inset: 0; background: var(--paper-2); z-index: 1; }
+  /* Soften the OSM tile colours toward our paper palette */
+  .leaflet-container { background: var(--paper-2); font-family: inherit; }
+  .leaflet-tile-pane { filter: saturate(0.5) brightness(1.04) contrast(0.92); mix-blend-mode: multiply; }
+  .leaflet-control-attribution {
+    background: rgba(254, 249, 238, 0.85) !important;
+    font-family: "JetBrains Mono", monospace !important;
+    font-size: 10px !important;
+    color: var(--ink-3) !important;
+    border-radius: 4px;
+    padding: 2px 6px !important;
+  }
+  .leaflet-control-zoom { display: none; }   /* we use built-in browser pinch + custom controls */
+
+  /* ───────────── Hero card (city + headline) ───────────── */
+  .hero {
+    position: absolute; top: 18px; left: 18px; z-index: 500;
+    background: var(--paper);
+    border: 1px solid var(--ink);
+    border-radius: 14px;
+    padding: 16px 20px 14px;
+    max-width: 360px;
+    box-shadow: 0 10px 30px rgba(15, 15, 15, 0.08);
+  }
+  .hero-eyebrow {
+    font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--mute); font-weight: 700;
+  }
+  .hero-city {
+    font-family: "Space Grotesk";
+    font-size: 32px; font-weight: 700; letter-spacing: -0.025em;
+    line-height: 1; margin: 8px 0 6px;
+  }
+  .hero-sub {
+    font-family: "Newsreader", serif; font-size: 14.5px; font-style: italic;
+    color: var(--ink-3); line-height: 1.35;
+  }
+  .hero-rank {
+    margin-top: 12px; padding-top: 10px;
+    border-top: 1px dashed var(--rule);
+    display: flex; align-items: baseline; gap: 8px;
+    font-size: 12px; color: var(--ink-3);
+  }
+  .hero-rank-n { color: var(--ink); font-weight: 700; font-size: 14px; }
+
+  /* ───────────── Hover sentence card ───────────── */
+  .hover-card {
+    position: absolute; top: 18px; right: 18px; z-index: 500;
+    width: 320px; max-width: calc(100vw - 36px);
+    background: var(--paper);
+    border: 1px solid var(--ink);
+    border-radius: 14px;
+    padding: 16px 18px 14px;
+    box-shadow: 0 10px 30px rgba(15, 15, 15, 0.08);
+    transition: opacity .18s;
+  }
+  .hover-card.idle { opacity: 0.92; }
+  .hover-eyebrow {
+    font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--mute); font-weight: 700;
+  }
+  .hover-headline {
+    font-family: "Newsreader", serif;
+    font-size: 22px; line-height: 1.15; font-weight: 500;
+    margin: 8px 0 0; color: var(--ink); letter-spacing: -0.005em;
+    text-wrap: pretty;
+  }
+  .hover-headline em { font-style: italic; }
+  .hover-headline .em-hot  { color: var(--hot-ink); font-style: italic; }
+  .hover-headline .em-cold { color: var(--cold-ink); font-style: italic; }
+  .hover-body {
+    font-family: "Newsreader", serif; font-size: 14.5px; line-height: 1.45;
+    color: var(--ink-2); margin: 10px 0 0;
+  }
+  .hover-stats {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    margin-top: 12px; padding-top: 10px;
+    border-top: 1px dashed var(--rule);
+  }
+  .hover-stat-n {
+    font-family: "Space Grotesk";
+    font-size: 22px; font-weight: 700; letter-spacing: -0.02em; line-height: 1;
+  }
+  .hover-stat-l {
+    font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--mute); margin-top: 4px; font-weight: 600;
+  }
+
+  /* ───────────── Legend (bottom center) ───────────── */
+  .legend {
+    position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
+    z-index: 500;
+    background: var(--paper);
+    border: 1px solid var(--ink);
+    border-radius: 14px;
+    padding: 12px 16px 10px;
+    width: min(560px, calc(100vw - 36px));
+    box-shadow: 0 10px 30px rgba(15, 15, 15, 0.08);
+  }
+  .legend-title {
+    font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--mute); font-weight: 700;
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .legend-title em {
+    font-family: "Newsreader", serif; font-style: italic; font-weight: 500;
+    color: var(--ink-3); font-size: 13px; letter-spacing: 0; text-transform: none;
+  }
+  .legend-strip {
+    height: 14px; border-radius: 3px; margin: 8px 0 6px;
+    position: relative;
+    border: 1px solid var(--ink);
+  }
+  .legend-tick {
+    position: absolute; top: -4px; bottom: -4px; width: 1px; background: var(--ink);
+  }
+  .legend-tick.major { width: 2px; background: var(--ink); }
+  .legend-anchors {
+    position: relative; height: 28px; font-family: "Newsreader", serif;
+    font-style: italic; font-size: 13px; color: var(--ink-2);
+  }
+  .legend-anchor {
+    position: absolute; transform: translateX(-50%); white-space: nowrap;
+    text-align: center; line-height: 1.15; padding-top: 2px;
+  }
+  .legend-anchor .num {
+    display: block; font-family: "JetBrains Mono", monospace;
+    font-style: normal; font-size: 10px; color: var(--mute); margin-bottom: 1px;
+  }
+  @media (max-width: 720px) {
+    .hero { top: 10px; left: 10px; right: 10px; max-width: none; padding: 12px 14px 10px; }
+    .hero-city { font-size: 26px; }
+    .hover-card {
+      top: auto; right: 10px; left: 10px; bottom: 130px;
+      width: auto; max-width: none;
+      padding: 12px 14px;
+    }
+    .hover-headline { font-size: 18px; }
+    .legend { bottom: 10px; padding: 10px 12px 8px; }
+  }
+
+  /* ───────────── Zoom warning ───────────── */
+  .zoom-warn {
+    position: absolute; top: 130px; left: 50%; transform: translateX(-50%); z-index: 600;
+    background: #fff3d4; border: 1px solid #c9a634; color: #5b4a18;
+    padding: 8px 14px; border-radius: 999px;
+    font-size: 12px; font-weight: 500;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+    display: none;
+  }
+  .zoom-warn.show { display: block; }
+
+  /* ───────────── Compass / scale corner ───────────── */
+  .corner-hint {
+    position: absolute; bottom: 18px; right: 18px; z-index: 500;
+    font-family: "JetBrains Mono", monospace; font-size: 10px;
+    color: var(--ink-3);
+    background: rgba(254, 249, 238, 0.8); padding: 4px 8px;
+    border-radius: 4px;
+  }
+  @media (max-width: 720px) { .corner-hint { display: none; } }
+
+  /* ───────────── Intro overlay ───────────── */
+  .intro-back {
+    position: fixed; inset: 0; z-index: 1500;
+    background: rgba(15, 15, 15, 0.55);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+    opacity: 1; transition: opacity .35s ease;
+  }
+  .intro-back.hidden { opacity: 0; pointer-events: none; }
+  .intro-card {
+    background: var(--paper);
+    border: 1px solid var(--ink);
+    border-radius: 18px;
+    width: min(720px, 100%);
+    max-height: calc(100dvh - 48px);
+    overflow: auto;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.35);
+  }
+  .intro-head {
+    padding: 28px 30px 22px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .intro-eyebrow {
+    font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--mute); font-weight: 700;
+  }
+  .intro-h1 {
+    font-family: "Space Grotesk"; font-size: 44px; font-weight: 700;
+    letter-spacing: -0.03em; line-height: 1; margin: 14px 0 12px;
+  }
+  .intro-h1 .em-hot  { color: var(--hot-ink); font-style: italic; font-family: "Newsreader", serif; font-weight: 600; }
+  .intro-h1 .em-cold { color: var(--cold-ink); font-style: italic; font-family: "Newsreader", serif; font-weight: 600; }
+  .intro-deck {
+    font-family: "Newsreader", serif; font-size: 17px; line-height: 1.5;
+    color: var(--ink-2); margin: 0;
+  }
+  .intro-tour {
+    padding: 22px 30px;
+    display: grid; gap: 14px;
+  }
+  .tour-row {
+    display: grid; grid-template-columns: 100px 1fr;
+    gap: 18px; align-items: start;
+    padding: 12px 0;
+    border-top: 1px dashed var(--rule);
+  }
+  .tour-row:first-child { border-top: 0; }
+  .tour-city {
+    font-family: "Space Grotesk"; font-weight: 700; font-size: 16px;
+    letter-spacing: -0.01em;
+  }
+  .tour-city .num {
+    display: block; font-family: "JetBrains Mono", monospace;
+    font-size: 11px; color: var(--mute); font-weight: 500; margin-top: 2px;
+  }
+  .tour-copy {
+    font-family: "Newsreader", serif; font-size: 15px; line-height: 1.45; color: var(--ink-2);
+  }
+  .tour-copy em { font-style: italic; color: var(--ink); }
+  .intro-foot {
+    padding: 18px 30px 24px;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    flex-wrap: wrap;
+  }
+  .intro-cta {
+    background: var(--ink); color: var(--paper);
+    border: 0; border-radius: 999px;
+    padding: 12px 22px; font-size: 14px; font-weight: 700;
+    font-family: inherit; cursor: pointer; letter-spacing: -0.005em;
+  }
+  .intro-cta:hover { background: #1f1f1f; }
+  .intro-skip {
+    background: none; border: 0; cursor: pointer;
+    font-family: "Newsreader", serif; font-style: italic;
+    font-size: 14px; color: var(--ink-3); padding: 10px;
+  }
+
+  /* ───────────── Share toast ───────────── */
+  .toast {
+    position: fixed; bottom: 28px; left: 50%; transform: translate(-50%, 20px);
+    background: var(--ink); color: var(--paper);
+    padding: 10px 18px; border-radius: 999px;
+    font-size: 13px; font-weight: 600;
+    z-index: 2000;
+    opacity: 0; transition: opacity .25s, transform .25s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ───────────── Tooltip suppression (we render our own card) ───────────── */
+  .leaflet-tooltip { display: none !important; }
+
+  /* ───────────── Loading ───────────── */
+  .loading {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    z-index: 400; pointer-events: none;
+  }
+  .loading-pill {
+    background: var(--paper); border: 1px solid var(--rule);
+    padding: 8px 14px; border-radius: 999px;
+    font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--ink-3);
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="brand">
+      <div class="brand-mark">◆</div>
+      <div>
+        <div class="brand-name">Isochrome</div>
+      </div>
+      <div class="brand-tagline">A field guide to street geometry</div>
+    </div>
+    <div></div>
+    <div class="chips" id="chips">
+      <label class="chip">
+        <span class="chip-label">City</span>
+        <span class="chip-value" id="chipCity">—</span>
+        <span class="chip-caret">▾</span>
+        <select class="native" id="cityPick"></select>
+      </label>
+      <label class="chip">
+        <span class="chip-label">Mode</span>
+        <span class="chip-value" id="chipMode">walking</span>
+        <span class="chip-caret">▾</span>
+        <select class="native" id="modePick">
+          <option value="foot">walking</option>
+          <option value="car">driving</option>
+        </select>
+      </label>
+      <label class="chip">
+        <span class="chip-label">Reach</span>
+        <span class="chip-value" id="chipRadius">—</span>
+        <span class="chip-caret">▾</span>
+        <select class="native" id="radiusPick"></select>
+      </label>
+      <button class="chip chip-icon" id="tourBtn" title="Take the tour">↶</button>
+      <button class="chip chip-share" id="shareBtn">↗ Share</button>
+    </div>
+  </header>
+
+  <div id="stage">
+    <div id="map"></div>
+
+    <div class="loading" id="loading"><div class="loading-pill">Loading street geometry…</div></div>
+
+    <div class="hero" id="hero">
+      <div class="hero-eyebrow" id="heroEyebrow">— · 5-minute walk</div>
+      <div class="hero-city" id="heroCity">—</div>
+      <div class="hero-sub" id="heroSub">Loading…</div>
+      <div class="hero-rank" id="heroRank"></div>
+    </div>
+
+    <div class="hover-card idle" id="hoverCard">
+      <div class="hover-eyebrow" id="hoverEyebrow">Hover any block</div>
+      <h2 class="hover-headline" id="hoverHeadline">
+        How <em class="em-hot">turn-y</em> is your <em class="em-cold">neighborhood</em>?
+      </h2>
+      <p class="hover-body" id="hoverBody">
+        Move your cursor across the map. Each hexagon is a quarter-block of street network — we'll tell you what its geometry means for getting around.
+      </p>
+      <div class="hover-stats" id="hoverStats" style="display:none">
+        <div>
+          <div class="hover-stat-n" id="hoverP">—</div>
+          <div class="hover-stat-l">effective <i>p</i></div>
+        </div>
+        <div>
+          <div class="hover-stat-n" id="hoverPct">—</div>
+          <div class="hover-stat-l" id="hoverPctL">percentile</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="zoom-warn" id="zoomWarn">Zoom in — hexes are sub-pixel here.</div>
+
+    <div class="legend" id="legend">
+      <div class="legend-title">
+        <span>How geometric is the street network?</span>
+        <em>effective <i>p</i></em>
+      </div>
+      <div class="legend-strip" id="legendStrip">
+        <div class="legend-tick" style="left:0%"></div>
+        <div class="legend-tick" style="left:25%"></div>
+        <div class="legend-tick major" style="left:50%"></div>
+        <div class="legend-tick" style="left:75%"></div>
+        <div class="legend-tick" style="left:100%"></div>
+      </div>
+      <div class="legend-anchors">
+        <div class="legend-anchor" style="left:0%"><span class="num">0.0</span>cul-de-sac</div>
+        <div class="legend-anchor" style="left:25%"><span class="num">0.5</span>winding</div>
+        <div class="legend-anchor" style="left:50%"><span class="num">1.0</span>perfect grid</div>
+        <div class="legend-anchor" style="left:75%"><span class="num">1.5</span>diagonals</div>
+        <div class="legend-anchor" style="left:100%"><span class="num">2.0</span>straight-line</div>
+      </div>
+    </div>
+
+    <div class="corner-hint" id="cornerHint">scroll to zoom · drag to pan</div>
+  </div>
+</div>
+
+<!-- Intro overlay -->
+<div class="intro-back" id="introBack">
+  <div class="intro-card">
+    <div class="intro-head">
+      <div class="intro-eyebrow">Isochrome · A field guide to street geometry</div>
+      <h1 class="intro-h1">
+        Some streets <span class="em-hot">get you there</span>.<br>
+        Others make you <span class="em-cold">turn a lot</span>.
+      </h1>
+      <p class="intro-deck">
+        A 5-minute walk in a perfect grid covers more ground than a 5-minute walk
+        through cul-de-sacs. We measured this for six cities, block by block.
+        Lower numbers are sprawl. Higher are geometry on your side.
+      </p>
+    </div>
+    <div class="intro-tour">
+      <div class="tour-row">
+        <div class="tour-city">Houston <span class="num">p̄ ≈ 0.62</span></div>
+        <div class="tour-copy">Suburbs of <em>cul-de-sacs and superblocks</em>. A five-minute walk loops back on itself.</div>
+      </div>
+      <div class="tour-row">
+        <div class="tour-city">Manhattan <span class="num">p̄ ≈ 1.04</span></div>
+        <div class="tour-copy">The textbook grid. Every step counts toward where you're going.</div>
+      </div>
+      <div class="tour-row">
+        <div class="tour-city">Barcelona <span class="num">p̄ ≈ 1.18</span></div>
+        <div class="tour-copy">Eixample's <em>diagonals</em> beat a grid — you walk almost as the crow flies.</div>
+      </div>
+    </div>
+    <div class="intro-foot">
+      <button class="intro-skip" id="introSkip">Skip the tour</button>
+      <button class="intro-cta" id="introStart">Start with Manhattan →</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Link copied</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+window.__PAYLOAD__ = /*__PAYLOAD_JSON__*/null;
+</script>
+
+<script>
+// ───────────────────────────────────────────────────────────────
+// PAYLOAD will be injected here by build_explorer.py
+// Shape (unchanged from research version):
+//   { layers: { "<city>__<mode>__<radius>": {spacing_m, radius_m, cells: [[lat,lng,p],…]} },
+//     cities: ["austin","new_york",…],
+//     pretty: { austin: "Austin", new_york: "New York", … },
+//     centers: { austin: {lat,lng,zoom}, … },
+//     radii:  { "austin__foot": [200,400,800], … } }
+// ───────────────────────────────────────────────────────────────
+const PAYLOAD = window.__PAYLOAD__ || {
+  // Tiny placeholder so the page renders standalone for design review.
+  cities: ["new_york","barcelona","washington_dc","san_francisco","austin","houston"],
+  pretty: { new_york:"New York", barcelona:"Barcelona", washington_dc:"Washington, DC",
+            san_francisco:"San Francisco", austin:"Austin", houston:"Houston" },
+  centers: {
+    new_york:{lat:40.758,lng:-73.985,zoom:14},
+    barcelona:{lat:41.392,lng:2.165,zoom:14},
+    washington_dc:{lat:38.905,lng:-77.034,zoom:14},
+    san_francisco:{lat:37.78,lng:-122.42,zoom:14},
+    austin:{lat:30.27,lng:-97.74,zoom:13},
+    houston:{lat:29.76,lng:-95.37,zoom:13},
+  },
+  radii: {
+    "new_york__foot":[200,400,800], "new_york__car":[2000,5000],
+    "barcelona__foot":[200,400,800], "barcelona__car":[2000,5000],
+    "washington_dc__foot":[200,400,800], "washington_dc__car":[2000,5000],
+    "san_francisco__foot":[200,400,800], "san_francisco__car":[2000,5000],
+    "austin__foot":[200,400,800], "austin__car":[2000,5000],
+    "houston__foot":[200,400,800], "houston__car":[2000,5000],
+  },
+  layers: {},  // empty in placeholder mode — real data comes from build_explorer.py
+};
+const VMIN = 0, VMAX = 2;
+
+// ────────────── Palette ──────────────
+// Diverging, anchored at p=1 (taxicab). Tuned for the warm paper background.
+// Sprawl side = warm coral (matches --hot). Grid side = cool indigo (matches --cold).
+const PALETTE = [
+  [0.00, [120, 30, 20]],
+  [0.15, [200, 60, 40]],
+  [0.30, [255, 100, 70]],
+  [0.40, [255, 170, 140]],
+  [0.50, [254, 249, 238]],   // perfect grid — paper
+  [0.60, [170, 180, 240]],
+  [0.70, [90, 110, 230]],
+  [0.85, [40, 60, 200]],
+  [1.00, [25, 35, 110]],
+];
+
+function paletteAt(t) {
+  t = Math.max(0, Math.min(1, t));
+  for (let i = 1; i < PALETTE.length; i++) {
+    if (t <= PALETTE[i][0]) {
+      const [t0, c0] = PALETTE[i - 1];
+      const [t1, c1] = PALETTE[i];
+      const f = (t - t0) / (t1 - t0);
+      return `rgb(${Math.round(c0[0]+f*(c1[0]-c0[0]))},${Math.round(c0[1]+f*(c1[1]-c0[1]))},${Math.round(c0[2]+f*(c1[2]-c0[2]))})`;
+    }
+  }
+  return `rgb(${PALETTE[PALETTE.length-1][1].join(',')})`;
+}
+function pColor(p) { return isFinite(p) ? paletteAt((p - VMIN) / (VMAX - VMIN)) : '#888'; }
+
+// Paint legend strip
+(function paintLegend() {
+  const stops = [];
+  for (let i = 0; i <= 20; i++) stops.push(`${paletteAt(i/20)} ${i*5}%`);
+  document.getElementById('legendStrip').style.background =
+    `linear-gradient(to right, ${stops.join(', ')})`;
+})();
+
+// ────────────── Hex geometry (preserved from research version) ──────────────
+const HEX_OVERLAP = 1.03;
+function hexLatLngs(lat, lng, spacingM) {
+  const r = spacingM / Math.sqrt(3) * HEX_OVERLAP;
+  const cosLat = Math.cos(lat * Math.PI / 180);
+  const dLat = r / 111320;
+  const dLng = r / (111320 * cosLat);
+  const out = [];
+  for (let k = 0; k < 6; k++) {
+    const a = Math.PI / 6 + k * Math.PI / 3;
+    out.push([lat + dLat * Math.sin(a), lng + dLng * Math.cos(a)]);
+  }
+  return out;
+}
+const MIN_PIXELS_PER_HEX = 4;
+function pixelsPerHex(lat, spacingM) {
+  const z = map.getZoom();
+  const metersPerPixel = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, z);
+  return spacingM / metersPerPixel;
+}
+
+// ────────────── Map ──────────────
+const map = L.map('map', { preferCanvas: true, zoomControl: false, attributionControl: true })
+  .setView([39, -77], 4);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap',
+  maxZoom: 19,
+}).addTo(map);
+
+// Shared canvas renderer (full-opacity polys + CSS opacity on container)
+// to avoid the alpha-vein artefact between neighboring hexes.
+const hexRenderer = L.canvas({ padding: 0.1 });
+hexRenderer.addTo(map);
+
+// ────────────── Controls ──────────────
+const cityPick   = document.getElementById('cityPick');
+const modePick   = document.getElementById('modePick');
+const radiusPick = document.getElementById('radiusPick');
+const chipCity   = document.getElementById('chipCity');
+const chipMode   = document.getElementById('chipMode');
+const chipRadius = document.getElementById('chipRadius');
+
+PAYLOAD.cities.forEach(c => {
+  const opt = document.createElement('option');
+  opt.value = c; opt.textContent = PAYLOAD.pretty[c] || c;
+  cityPick.appendChild(opt);
+});
+
+function radiiFor(city, mode) { return PAYLOAD.radii[city + '__' + mode] || []; }
+function defaultRadius(city, mode) {
+  const rs = radiiFor(city, mode);
+  if (!rs.length) return null;
+  return rs[Math.floor(rs.length / 2)];
+}
+function refreshRadiusDropdown(preserveR) {
+  const city = cityPick.value, mode = modePick.value;
+  const rs = radiiFor(city, mode);
+  radiusPick.innerHTML = '';
+  rs.forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r;
+    opt.textContent = (mode === 'foot') ? `${r} m` : `${(r/1000).toFixed(0)} km`;
+    radiusPick.appendChild(opt);
+  });
+  let pick = (preserveR != null && rs.includes(+preserveR)) ? +preserveR : defaultRadius(city, mode);
+  if (pick != null) radiusPick.value = pick;
+  radiusPick.disabled = rs.length === 0;
+}
+
+// Friendly reach label (e.g. "5-min walk") — assumes ~80m/min walking, ~600m/min driving.
+// These are rough but human-meaningful.
+function reachLabel(mode, r) {
+  if (mode === 'foot') {
+    const min = Math.round(r / 80);
+    return `${min}-min walk`;
+  } else {
+    const min = Math.round(r / 600);
+    return `${min}-min drive`;
+  }
+}
+
+// ────────────── City ranking (precomputed across cities at each radius) ──────────────
+// We compute median p per (city,mode,radius) once per layer change so we can
+// say "Manhattan is #2 of 6 most grid-like at this scale."
+function cityMedians(mode, radius) {
+  const out = [];
+  PAYLOAD.cities.forEach(c => {
+    const k = c + '__' + mode + '__' + radius;
+    const d = PAYLOAD.layers[k];
+    if (!d || !d.cells.length) return;
+    const ps = d.cells.map(r => r[2]).sort((a,b) => a-b);
+    out.push({ city: c, median: ps[Math.floor(ps.length/2)] });
+  });
+  out.sort((a,b) => b.median - a.median);  // most grid-like first
+  return out;
+}
+
+// ────────────── Hover-sentence interpretation ──────────────
+// Translate raw p → human-readable sentence + percentile within current city.
+function interpret(p, allP, cityName) {
+  // percentile in current city
+  let pct = 0;
+  if (allP.length) {
+    let lo = 0, hi = allP.length;
+    while (lo < hi) {
+      const m = (lo + hi) >>> 1;
+      if (allP[m] < p) lo = m + 1; else hi = m;
+    }
+    pct = Math.round(100 * lo / allP.length);
+  }
+  // headline based on p
+  let headline, body;
+  if (p < 0.55) {
+    const dropPct = Math.round((1 - p / 1) * 100);
+    headline = `Walking here loops back on itself — <em class="em-hot">${dropPct}% less ground</em> covered than a perfect grid.`;
+    body = `Cul-de-sacs and superblocks dominate. Five minutes on foot here covers about as much as a 1-minute walk through Midtown.`;
+  } else if (p < 0.85) {
+    const dropPct = Math.round((1 - p) * 100);
+    headline = `Streets here meander — about <em class="em-hot">${dropPct}% less efficient</em> than a perfect grid.`;
+    body = `A typical residential pattern: through-streets exist but you'll add some detour to most trips.`;
+  } else if (p < 1.05) {
+    headline = `This is <em>basically a grid</em>. Geometry is on your side.`;
+    body = `Five minutes on foot reaches almost the full 400m radius. You can pick directions independently.`;
+  } else if (p < 1.25) {
+    const gainPct = Math.round((p - 1) * 100);
+    headline = `Streets here beat a grid by <em class="em-cold">${gainPct}%</em> — diagonals shorten the trip.`;
+    body = `You're seeing the rare urban-design win: avenues that cut across the grid mean you walk closer to a straight line.`;
+  } else {
+    const gainPct = Math.round((p - 1) * 100);
+    headline = `Exceptional geometry — <em class="em-cold">${gainPct}% better than a grid</em>.`;
+    body = `Multiple diagonal routes converge here. About as efficient as walking in an open field.`;
+  }
+  // percentile copy
+  let pctText, pctLabel;
+  if (pct >= 95) { pctText = `top ${100 - pct}%`; pctLabel = `most grid-like in ${cityName}`; }
+  else if (pct >= 75) { pctText = `top ${100 - pct}%`; pctLabel = `most grid-like in ${cityName}`; }
+  else if (pct <= 5)  { pctText = `bottom ${pct}%`; pctLabel = `most sprawly in ${cityName}`; }
+  else if (pct <= 25) { pctText = `bottom ${pct}%`; pctLabel = `most sprawly in ${cityName}`; }
+  else { pctText = `${pct}th percentile`; pctLabel = `for ${cityName}`; }
+  return { headline, body, pctText, pctLabel };
+}
+
+// ────────────── Layer rendering ──────────────
+let layerGroup = null;
+let polyByIndex = [];      // for hover lookup
+let currentP = [];         // sorted p values, current layer
+
+function renderLayer(opts = {}) {
+  if (layerGroup) { map.removeLayer(layerGroup); layerGroup = null; }
+  polyByIndex = [];
+  const city = cityPick.value, mode = modePick.value;
+  const r = parseInt(radiusPick.value, 10);
+
+  chipCity.textContent   = PAYLOAD.pretty[city] || city;
+  chipMode.textContent   = mode === 'foot' ? 'walking' : 'driving';
+  chipRadius.textContent = (mode === 'foot') ? `${r} m` : `${(r/1000).toFixed(0)} km`;
+
+  document.getElementById('heroCity').textContent = PAYLOAD.pretty[city] || city;
+  document.getElementById('heroEyebrow').textContent =
+    `${mode === 'foot' ? 'Walking' : 'Driving'} · ${reachLabel(mode, r)}`;
+
+  const center = PAYLOAD.centers[city];
+  if (center && !opts.preserveView) map.setView([center.lat, center.lng], center.zoom);
+
+  const key = city + '__' + mode + '__' + r;
+  const data = PAYLOAD.layers[key];
+
+  const loading = document.getElementById('loading');
+  loading.style.display = 'none';
+
+  if (!data || !data.cells.length) {
+    document.getElementById('heroSub').textContent =
+      mode === 'foot' ? 'No walking data for this radius yet.' : 'No driving data for this radius yet.';
+    document.getElementById('heroRank').innerHTML = '';
+    currentP = [];
+    return;
+  }
+
+  const cells = data.cells, spacing = data.spacing_m;
+  const polys = [];
+  const ps = [];
+  for (let i = 0; i < cells.length; i++) {
+    const [lat, lng, p] = cells[i];
+    const verts = hexLatLngs(lat, lng, spacing);
+    const poly = L.polygon(verts, {
+      renderer: hexRenderer, stroke: false,
+      fillColor: pColor(p), fillOpacity: 1,
+    });
+    poly._p = p; poly._lat = lat; poly._lng = lng;
+    poly.on('mousemove', () => updateHover(p, lat, lng));
+    poly.on('mouseover', () => updateHover(p, lat, lng));
+    polys.push(poly);
+    ps.push(p);
+    polyByIndex.push(poly);
+  }
+  layerGroup = L.layerGroup(polys).addTo(map);
+  applyOpacity();
+
+  ps.sort((a,b) => a-b);
+  currentP = ps;
+  const median = ps[Math.floor(ps.length/2)];
+  const p10 = ps[Math.floor(ps.length*0.1)];
+  const p90 = ps[Math.floor(ps.length*0.9)];
+
+  // City description
+  const desc = describeCity(median);
+  document.getElementById('heroSub').innerHTML =
+    `${desc} <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mute)">· median p ${median.toFixed(2)} · p10 ${p10.toFixed(2)} · p90 ${p90.toFixed(2)}</span>`;
+
+  // Rank within current cohort
+  const ranks = cityMedians(mode, r);
+  const myIdx = ranks.findIndex(x => x.city === city);
+  if (myIdx >= 0) {
+    document.getElementById('heroRank').innerHTML =
+      `<span class="hero-rank-n">#${myIdx + 1} of ${ranks.length}</span> most grid-like at this scale`;
+  } else {
+    document.getElementById('heroRank').innerHTML = '';
+  }
+
+  // Update zoom warning
+  refreshZoomWarn(cells[0][0], spacing);
+
+  // Update permalink
+  syncPermalink();
+}
+
+function describeCity(median) {
+  if (median < 0.55) return `Mostly cul-de-sacs and curving subdivisions.`;
+  if (median < 0.85) return `Suburban patterns with some through-streets.`;
+  if (median < 1.05) return `Largely a grid — efficient on foot.`;
+  if (median < 1.25) return `Better than a grid — diagonals help.`;
+  return `Exceptional geometry — among the most efficient anywhere.`;
+}
+
+function refreshZoomWarn(lat, spacing) {
+  const ppx = pixelsPerHex(lat, spacing);
+  document.getElementById('zoomWarn').classList.toggle('show', ppx < MIN_PIXELS_PER_HEX);
+}
+
+// ────────────── Hover card ──────────────
+const hoverCard      = document.getElementById('hoverCard');
+const hoverHeadline  = document.getElementById('hoverHeadline');
+const hoverBody      = document.getElementById('hoverBody');
+const hoverP         = document.getElementById('hoverP');
+const hoverPct       = document.getElementById('hoverPct');
+const hoverPctL      = document.getElementById('hoverPctL');
+const hoverEyebrow   = document.getElementById('hoverEyebrow');
+const hoverStats     = document.getElementById('hoverStats');
+
+function updateHover(p, lat, lng) {
+  const cityName = PAYLOAD.pretty[cityPick.value] || cityPick.value;
+  const r = interpret(p, currentP, cityName);
+  hoverCard.classList.remove('idle');
+  hoverEyebrow.textContent = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  hoverHeadline.innerHTML  = r.headline;
+  hoverBody.textContent    = r.body;
+  hoverP.textContent       = p.toFixed(2);
+  hoverPct.textContent     = r.pctText;
+  hoverPctL.textContent    = r.pctLabel;
+  hoverStats.style.display = 'grid';
+}
+
+// ────────────── Opacity (fixed at 65% — hidden from main UI) ──────────────
+function applyOpacity() {
+  const c = hexRenderer._container;
+  if (c) c.style.opacity = '0.7';
+}
+
+// ────────────── Wiring ──────────────
+cityPick.addEventListener('change', () => {
+  const prev = parseInt(radiusPick.value, 10);
+  refreshRadiusDropdown(prev);
+  renderLayer();
+});
+modePick.addEventListener('change', () => { refreshRadiusDropdown(); renderLayer(); });
+radiusPick.addEventListener('change', () => renderLayer({ preserveView: true }));
+
+map.on('zoomend', () => {
+  const city = cityPick.value, mode = modePick.value, r = parseInt(radiusPick.value, 10);
+  const data = PAYLOAD.layers[city + '__' + mode + '__' + r];
+  if (!data || !data.cells.length) return;
+  refreshZoomWarn(data.cells[0][0], data.spacing_m);
+});
+map.on('moveend', syncPermalink);
+
+// ────────────── Permalink + share ──────────────
+function syncPermalink() {
+  const c = cityPick.value, m = modePick.value, r = radiusPick.value;
+  const center = map.getCenter(), z = map.getZoom();
+  const hash = `#c=${c}&m=${m}&r=${r}&v=${center.lat.toFixed(4)},${center.lng.toFixed(4)},${z}`;
+  if (location.hash !== hash) history.replaceState(null, '', hash);
+}
+
+function readPermalink() {
+  const h = location.hash.replace(/^#/, '');
+  if (!h) return null;
+  const out = {};
+  h.split('&').forEach(pair => {
+    const [k, v] = pair.split('=');
+    if (k && v) out[k] = decodeURIComponent(v);
+  });
+  return out;
+}
+
+document.getElementById('shareBtn').addEventListener('click', async () => {
+  syncPermalink();
+  const url = location.href;
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: 'Isochrome', text: 'How grid-like is your neighborhood?', url });
+    } else {
+      await navigator.clipboard.writeText(url);
+      const t = document.getElementById('toast');
+      t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 1600);
+    }
+  } catch (_) {}
+});
+
+// ────────────── Intro overlay ──────────────
+const introBack = document.getElementById('introBack');
+function hideIntro() { introBack.classList.add('hidden'); localStorage.setItem('isochrome_seen', '1'); }
+document.getElementById('introSkip').addEventListener('click', hideIntro);
+document.getElementById('introStart').addEventListener('click', () => {
+  hideIntro();
+  cityPick.value = PAYLOAD.cities.includes('nyc') ? 'nyc' : PAYLOAD.cities[0];
+  refreshRadiusDropdown();
+  renderLayer();
+});
+document.getElementById('tourBtn').addEventListener('click', () => {
+  introBack.classList.remove('hidden');
+});
+
+// ────────────── Boot ──────────────
+function boot() {
+  // Default city/mode/radius
+  const link = readPermalink();
+  if (link && link.c && PAYLOAD.cities.includes(link.c)) cityPick.value = link.c;
+  else cityPick.value = PAYLOAD.cities.includes('nyc') ? 'nyc' : PAYLOAD.cities[0];
+  if (link && link.m) modePick.value = link.m;
+  refreshRadiusDropdown(link && link.r ? +link.r : null);
+  renderLayer();
+
+  // Apply view from permalink if present
+  if (link && link.v) {
+    const [lat, lng, z] = link.v.split(',').map(Number);
+    if (isFinite(lat) && isFinite(lng) && isFinite(z)) {
+      map.setView([lat, lng], z);
+    }
+  }
+
+  // Show intro for first-timers (and when no permalink view present)
+  if (localStorage.getItem('isochrome_seen') !== '1' && !(link && link.v)) {
+    /* keep visible */
+  } else {
+    introBack.classList.add('hidden');
+  }
+}
+boot();
+</script>
+</body>
+</html>
