@@ -304,6 +304,19 @@
   .legend-anchor.al .num { text-align: left; }
   .legend-anchor.am .num { text-align: center; }
   .legend-anchor.ar .num { text-align: right; }
+  .legend-eq {
+    margin-top: 10px; padding-top: 8px;
+    border-top: 1px dashed var(--rule);
+    text-align: center;
+    font-family: "Newsreader", "Times New Roman", serif;
+    font-size: 13px;
+    font-style: italic;
+    color: var(--ink-3);
+    line-height: 1.3;
+  }
+  .legend-eq sub, .legend-eq sup { font-style: normal; font-size: 0.72em; }
+  .legend-eq i { font-style: italic; }
+  .legend-eq-rhs { font-style: italic; color: var(--mute); white-space: nowrap; }
   .legend-anchor .num {
     display: block; font-family: "JetBrains Mono", monospace;
     font-style: normal; font-size: 10px; color: var(--mute); margin-bottom: 1px;
@@ -548,6 +561,11 @@
         <div class="legend-anchor am" style="left:50%"><span class="num" id="anchorM">1.0</span>street-grid</div>
         <div class="legend-anchor ar" style="left:100%"><span class="num" id="anchorR">2.0</span>euclidean</div>
       </div>
+      <div class="legend-eq" id="legendEq" aria-hidden="true">
+        &#x2016;<i>v</i>&#x2016;<sub><i>p</i></sub> = (|<i>x</i>|<sup><i>p</i></sup> + |<i>y</i>|<sup><i>p</i></sup>)<sup>1/<i>p</i></sup>
+        &nbsp;&middot;&nbsp;
+        <span class="legend-eq-rhs">grid <i>p</i> = 1, Euclidean <i>p</i> = 2</span>
+      </div>
     </div>
 
     <div class="corner-hint" id="cornerHint">scroll to zoom · drag to pan</div>
@@ -748,10 +766,199 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
 }).addTo(map);
 
-// Shared canvas renderer (full-opacity polys + CSS opacity on container)
-// to avoid the alpha-vein artefact between neighboring hexes.
-const hexRenderer = L.canvas({ padding: 0.1 });
-hexRenderer.addTo(map);
+// ────────────── Custom canvas layer ──────────────
+//
+// Renders cells onto a single canvas, sized to the visible map viewport
+// (+ small pad).  Two render paths:
+//   * High zoom (≥ 5 px per hex spacing): hex-path fills with AA. Each hex
+//     covers many pixels so AA edges are negligible relative to interior;
+//     a 5 % HEX_OVERLAP closes any sub-pixel seam.
+//   * Low zoom  (< 5 px per hex spacing): pixel-aligned fillRect stamps
+//     with AA off. Each cell becomes a 1–4 px solid square. No alpha
+//     mixing means no moiré, no veins, no compounded translucent edges.
+// Hover via a single mousemove → bounded nearest-neighbour over the cell
+// list (≤ 60 k cells; brute force in tens of µs, throttled to rAF).
+//
+// CSS opacity on the canvas dims the whole composite uniformly; we keep
+// per-cell alpha at 1.0 so neighbours don't cumulate.
+
+const HexField = L.Layer.extend({
+  options: { padding: 0.05, hexOverlap: 1.05 },
+
+  initialize(opts) {
+    L.setOptions(this, opts || {});
+    this._cells = opts && opts.cells || [];
+    this._spacing = (opts && opts.spacing) || 75;
+    this._field = (opts && opts.field) || 'p';
+    this._opacity = (opts && opts.opacity != null) ? opts.opacity : 0.7;
+    this._onHover = (opts && opts.onHover) || null;
+    this._lastBest = null;
+    this._mouseRaf = 0;
+  },
+
+  onAdd(map) {
+    this._map = map;
+    const canvas = this._canvas = L.DomUtil.create('canvas', 'leaflet-layer leaflet-zoom-hide pscape-canvas');
+    canvas.style.position = 'absolute';
+    canvas.style.opacity = String(this._opacity);
+    canvas.style.pointerEvents = 'none';
+    map.getPanes().overlayPane.appendChild(canvas);
+    map.on('zoomend resize moveend viewreset', this._reset, this);
+    this._mouseHandler = (ev) => this._onMouseMoveDom(ev);
+    this._mouseLeaveHandler = () => { this._lastBest = null; };
+    map.getContainer().addEventListener('mousemove', this._mouseHandler);
+    map.getContainer().addEventListener('mouseleave', this._mouseLeaveHandler);
+    this._reset();
+    return this;
+  },
+
+  onRemove(map) {
+    map.off('zoomend resize moveend viewreset', this._reset, this);
+    map.getContainer().removeEventListener('mousemove', this._mouseHandler);
+    map.getContainer().removeEventListener('mouseleave', this._mouseLeaveHandler);
+    L.DomUtil.remove(this._canvas);
+    this._canvas = null;
+  },
+
+  setOpacity(o) {
+    this._opacity = o;
+    if (this._canvas) this._canvas.style.opacity = String(o);
+  },
+
+  setField(field) {
+    if (field === this._field) return;
+    this._field = field;
+    this._draw();
+  },
+
+  setData(cells, spacing) {
+    this._cells = cells || [];
+    this._spacing = spacing || this._spacing;
+    this._reset();
+  },
+
+  setHoverHandler(fn) { this._onHover = fn; },
+
+  _reset() {
+    if (!this._canvas || !this._map) return;
+    const map = this._map, canvas = this._canvas;
+    const size = map.getSize();
+    const pad = Math.round(Math.max(size.x, size.y) * this.options.padding);
+    const w = size.x + 2 * pad, h = size.y + 2 * pad;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    const tl = map.containerPointToLayerPoint([-pad, -pad]);
+    L.DomUtil.setPosition(canvas, tl);
+    this._padding = pad;
+    this._draw();
+  },
+
+  _draw() {
+    if (!this._canvas || !this._map || !this._cells.length) return;
+    const map = this._map, canvas = this._canvas;
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const pad = this._padding || 0;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.scale(dpr, dpr);
+
+    const center = map.getCenter();
+    const z = map.getZoom();
+    const metersPerPixel = 156543.03392 * Math.cos(center.lat * Math.PI / 180) / Math.pow(2, z);
+    const ppx = this._spacing / metersPerPixel;
+
+    const bounds = map.getBounds().pad(this.options.padding);
+    const sw = bounds.getSouthWest(), ne = bounds.getNorthEast();
+    const swLat = sw.lat, neLat = ne.lat, swLng = sw.lng, neLng = ne.lng;
+    const field = this._field;
+    const cells = this._cells;
+
+    if (ppx >= 5) {
+      // High zoom: fill hex paths. Slight overlap for seam closure.
+      const r = (ppx / Math.sqrt(3)) * this.options.hexOverlap;
+      // precompute corner unit vectors
+      const uX = new Float32Array(6), uY = new Float32Array(6);
+      for (let k = 0; k < 6; k++) {
+        const a = Math.PI / 6 + k * Math.PI / 3;
+        uX[k] = Math.cos(a) * r;
+        uY[k] = Math.sin(a) * r;
+      }
+      for (let i = 0; i < cells.length; i++) {
+        const c = cells[i];
+        const lat = c[0], lng = c[1];
+        if (lat < swLat || lat > neLat || lng < swLng || lng > neLng) continue;
+        const value = field === 'circuity' ? c[3] : c[2];
+        const pt = map.latLngToContainerPoint([lat, lng]);
+        const x = pt.x + pad, y = pt.y + pad;
+        ctx.beginPath();
+        ctx.moveTo(x + uX[0], y + uY[0]);
+        for (let k = 1; k < 6; k++) ctx.lineTo(x + uX[k], y + uY[k]);
+        ctx.closePath();
+        ctx.fillStyle = colorFor(value, field);
+        ctx.fill();
+      }
+    } else {
+      // Low zoom: pixel-aligned fillRect, no AA edges.
+      ctx.imageSmoothingEnabled = false;
+      const stamp = Math.max(1, Math.ceil(ppx * 1.05));
+      const half = Math.floor(stamp / 2);
+      for (let i = 0; i < cells.length; i++) {
+        const c = cells[i];
+        const lat = c[0], lng = c[1];
+        if (lat < swLat || lat > neLat || lng < swLng || lng > neLng) continue;
+        const value = field === 'circuity' ? c[3] : c[2];
+        const pt = map.latLngToContainerPoint([lat, lng]);
+        ctx.fillStyle = colorFor(value, field);
+        ctx.fillRect(Math.round(pt.x + pad - half), Math.round(pt.y + pad - half), stamp, stamp);
+      }
+    }
+
+    ctx.restore();
+  },
+
+  _onMouseMoveDom(ev) {
+    if (this._mouseRaf || !this._cells.length || !this._onHover) return;
+    this._mouseRaf = requestAnimationFrame(() => {
+      this._mouseRaf = 0;
+      this._processMouse(ev);
+    });
+  },
+
+  _processMouse(ev) {
+    const map = this._map;
+    if (!map) return;
+    const rect = map.getContainer().getBoundingClientRect();
+    const x = ev.clientX - rect.left;
+    const y = ev.clientY - rect.top;
+    if (x < 0 || y < 0 || x >= rect.width || y >= rect.height) return;
+    const ll = map.containerPointToLatLng([x, y]);
+    const lat0 = ll.lat, lng0 = ll.lng;
+    const bounds = map.getBounds();
+    const swLat = bounds._southWest.lat, neLat = bounds._northEast.lat;
+    const swLng = bounds._southWest.lng, neLng = bounds._northEast.lng;
+    const cells = this._cells;
+    let best = null, bestD = Infinity;
+    for (let i = 0; i < cells.length; i++) {
+      const c = cells[i];
+      const cl = c[0], cn = c[1];
+      if (cl < swLat || cl > neLat || cn < swLng || cn > neLng) continue;
+      const dy = cl - lat0, dx = cn - lng0;
+      const d = dy * dy + dx * dx;
+      if (d < bestD) { bestD = d; best = c; }
+    }
+    if (best && best !== this._lastBest) {
+      this._lastBest = best;
+      this._onHover(best);
+    }
+  },
+});
+
+let hexField = null;
 
 // ────────────── Controls ──────────────
 const cityPick    = document.getElementById('cityPick');
@@ -825,8 +1032,12 @@ function cityMedians(mode, radius) {
 
 // ────────────── Hover-sentence interpretation ──────────────
 // Translate raw p → human-readable sentence + percentile within current city.
-function interpret(p, allP, cityName) {
-  // percentile in current city
+// All "% longer" / "% shorter" text uses the actual measured circuity
+// `c = mean(d_route / d_euclid)`. Manhattan-grid baseline is 4/π ≈ 1.273.
+// We tier the headline by p (which is monotone in c) but quote real
+// percentages from c so the text means what it says.
+function interpret(p, c, allP, cityName) {
+  // percentile in current city (still by p — same ordering)
   let pct = 0;
   if (allP.length) {
     let lo = 0, hi = allP.length;
@@ -836,27 +1047,32 @@ function interpret(p, allP, cityName) {
     }
     pct = Math.round(100 * lo / allP.length);
   }
-  // headline based on p
+  const GRID = 4 / Math.PI;                  // 1.27324
+  const cv = isFinite(c) ? c : NaN;
+  const overStraight = isFinite(cv) ? Math.max(0, Math.round((cv - 1) * 100)) : 0;
+  const overGrid = isFinite(cv) ? Math.round((cv / GRID - 1) * 100) : 0;
+
   let headline, body;
-  if (p < 0.55) {
-    const dropPct = Math.round((1 - p / 1) * 100);
-    headline = `Walking here loops back on itself — <em class="em-hot">${dropPct}% less ground</em> covered than a perfect grid.`;
-    body = `Cul-de-sacs and superblocks dominate. Five minutes on foot here covers about as much as a 1-minute walk through Midtown.`;
+  if (p <= 0.001) {
+    headline = `<em class="em-hot">No reliable origin here</em> — the network barely reaches this cell.`;
+    body = `Either too rural / disconnected, or the routing graph has no road within one grid spacing of the cell centre. Treated as p = 0.`;
+  } else if (p < 0.55) {
+    headline = `Walking here loops back on itself — trips run <em class="em-hot">${overStraight}% longer</em> than the crow's flight on average.`;
+    body = `Cul-de-sacs and superblocks dominate; the network forces ~${cv.toFixed(2)}× the straight-line distance, vs ${GRID.toFixed(2)}× for a perfect Manhattan grid.`;
   } else if (p < 0.85) {
-    const dropPct = Math.round((1 - p) * 100);
-    headline = `Streets here meander — about <em class="em-hot">${dropPct}% less efficient</em> than a perfect grid.`;
-    body = `A typical residential pattern: through-streets exist but you'll add some detour to most trips.`;
+    const overGridShown = Math.max(0, overGrid);
+    headline = `Streets here meander — trips are about <em class="em-hot">${overGridShown}% longer</em> than a perfect grid would give you.`;
+    body = `Mean network distance is ${cv.toFixed(2)}× the crow's flight. A grid would be ${GRID.toFixed(2)}×, the local detour just exceeds that.`;
   } else if (p < 1.05) {
-    headline = `This is <em>basically a grid</em>. Geometry is on your side.`;
-    body = `Five minutes on foot reaches almost the full 400m radius. You can pick directions independently.`;
+    headline = `Basically a grid — trips run about <em>${overStraight}% longer</em> than straight-line.`;
+    body = `Mean circuity ${cv.toFixed(2)}, within a hair of the Manhattan-grid limit ${GRID.toFixed(2)}. Geometry is on your side.`;
   } else if (p < 1.25) {
-    const gainPct = Math.round((p - 1) * 100);
-    headline = `Streets here beat a grid by <em class="em-cold">${gainPct}%</em> — diagonals shorten the trip.`;
-    body = `You're seeing the rare urban-design win: avenues that cut across the grid mean you walk closer to a straight line.`;
+    const shorterVsGrid = Math.max(0, -overGrid);
+    headline = `<em>Better than a grid</em> — trips are about <em class="em-cold">${shorterVsGrid}% shorter</em> than Manhattan would give you.`;
+    body = `Mean circuity ${cv.toFixed(2)} vs ${GRID.toFixed(2)} for a grid. Diagonal avenues, chamfered corners, or radial streets cut across the rectangle.`;
   } else {
-    const gainPct = Math.round((p - 1) * 100);
-    headline = `Exceptional geometry — <em class="em-cold">${gainPct}% better than a grid</em>.`;
-    body = `Multiple diagonal routes converge here. About as efficient as walking in an open field.`;
+    headline = `<em>Exceptional</em> — trips run within <em class="em-cold">${overStraight}%</em> of straight-line distance.`;
+    body = `Mean circuity ${cv.toFixed(2)}. One of the most direct walking networks anywhere — Eixample-class or better.`;
   }
   // percentile copy
   let pctText, pctLabel;
@@ -906,26 +1122,24 @@ function renderLayer(opts = {}) {
 
   const cells = data.cells, spacing = data.spacing_m;
   const field = fieldPick.value;  // 'p' | 'circuity'
-  const polys = [];
   const ps = [];
-  for (let i = 0; i < cells.length; i++) {
-    const row = cells[i];
-    const lat = row[0], lng = row[1], p = row[2];
-    const c = (row.length > 3) ? row[3] : NaN;  // backward-compat with old 3-tuples
-    const value = field === 'circuity' ? c : p;
-    const verts = hexLatLngs(lat, lng, spacing);
-    const poly = L.polygon(verts, {
-      renderer: hexRenderer, stroke: false,
-      fillColor: colorFor(value, field), fillOpacity: 1,
+  for (let i = 0; i < cells.length; i++) ps.push(cells[i][2]);
+
+  if (!hexField) {
+    hexField = new HexField({
+      cells, spacing, field,
+      opacity: (parseInt(opacityPick.value, 10) || 0) / 100,
+      onHover: (cell) => {
+        const lat = cell[0], lng = cell[1], p = cell[2];
+        const c = (cell.length > 3) ? cell[3] : NaN;
+        updateHover(p, c, lat, lng);
+      },
     });
-    poly._p = p; poly._c = c; poly._lat = lat; poly._lng = lng;
-    poly.on('mousemove', () => updateHover(p, lat, lng));
-    poly.on('mouseover', () => updateHover(p, lat, lng));
-    polys.push(poly);
-    ps.push(p);
-    polyByIndex.push(poly);
+    hexField.addTo(map);
+  } else {
+    hexField.setData(cells, spacing);
+    hexField.setField(field);
   }
-  layerGroup = L.layerGroup(polys).addTo(map);
   applyOpacity();
 
   ps.sort((a,b) => a-b);
@@ -959,9 +1173,9 @@ function renderLayer(opts = {}) {
 function describeCity(median) {
   if (median < 0.55) return `Mostly cul-de-sacs and curving subdivisions.`;
   if (median < 0.85) return `Suburban patterns with some through-streets.`;
-  if (median < 1.05) return `Largely a grid — efficient on foot.`;
-  if (median < 1.25) return `Better than a grid — diagonals help.`;
-  return `Exceptional geometry — among the most efficient anywhere.`;
+  if (median < 1.05) return `Largely a grid — close to Manhattan-style routing.`;
+  if (median < 1.25) return `Better than a grid — diagonals shorten trips.`;
+  return `Exceptional geometry — close to straight-line travel.`;
 }
 
 function refreshZoomWarn(lat, spacing) {
@@ -979,14 +1193,19 @@ const hoverPctL      = document.getElementById('hoverPctL');
 const hoverEyebrow   = document.getElementById('hoverEyebrow');
 const hoverStats     = document.getElementById('hoverStats');
 
-function updateHover(p, lat, lng) {
+function updateHover(p, c, lat, lng) {
   const cityName = PAYLOAD.pretty[cityPick.value] || cityPick.value;
-  const r = interpret(p, currentP, cityName);
+  const r = interpret(p, c, currentP, cityName);
   hoverCard.classList.remove('idle');
   hoverEyebrow.textContent = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
   hoverHeadline.innerHTML  = r.headline;
   hoverBody.textContent    = r.body;
-  hoverP.textContent       = p.toFixed(2);
+  // Display the field the user is currently looking at.
+  if (fieldPick.value === 'circuity' && isFinite(c)) {
+    hoverP.textContent = c.toFixed(2);
+  } else {
+    hoverP.textContent = p.toFixed(2);
+  }
   hoverPct.textContent     = r.pctText;
   hoverPctL.textContent    = r.pctLabel;
   hoverStats.style.display = 'grid';
@@ -994,10 +1213,8 @@ function updateHover(p, lat, lng) {
 
 // ────────────── Opacity (slider-controlled) ──────────────
 function applyOpacity() {
-  const c = hexRenderer._container;
-  if (!c) return;
   const o = (parseInt(opacityPick.value, 10) || 0) / 100;
-  c.style.opacity = String(o);
+  if (hexField) hexField.setOpacity(o);
   if (chipOpacity) chipOpacity.textContent = `${opacityPick.value}%`;
 }
 
