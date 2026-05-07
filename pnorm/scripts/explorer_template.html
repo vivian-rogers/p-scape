@@ -1032,10 +1032,12 @@ function cityMedians(mode, radius) {
 
 // ────────────── Hover-sentence interpretation ──────────────
 // Translate raw p → human-readable sentence + percentile within current city.
-// All "% longer" / "% shorter" text uses the actual measured circuity
-// `c = mean(d_route / d_euclid)`. Manhattan-grid baseline is 4/π ≈ 1.273.
-// We tier the headline by p (which is monotone in c) but quote real
-// percentages from c so the text means what it says.
+// All headlines quote the SAME metric — "X% longer than the crow's flight" =
+// (c - 1) * 100, where c is the per-cell mean circuity. This is monotone in c
+// and stays comparable across tiers (so adjacent cells can't read as
+// dramatically different just because they crossed a threshold).
+// Tiers are still bucketed by p; the grid baseline (4/π ≈ 1.27 → +27%) and
+// raw circuity go in the body as context.
 function interpret(p, c, allP, cityName) {
   // percentile in current city (still by p — same ordering)
   let pct = 0;
@@ -1048,9 +1050,9 @@ function interpret(p, c, allP, cityName) {
     pct = Math.round(100 * lo / allP.length);
   }
   const GRID = 4 / Math.PI;                  // 1.27324
+  const GRID_PCT = Math.round((GRID - 1) * 100);   // 27
   const cv = isFinite(c) ? c : NaN;
   const overStraight = isFinite(cv) ? Math.max(0, Math.round((cv - 1) * 100)) : 0;
-  const overGrid = isFinite(cv) ? Math.round((cv / GRID - 1) * 100) : 0;
 
   let headline, body;
   if (p <= 0.001) {
@@ -1058,21 +1060,19 @@ function interpret(p, c, allP, cityName) {
     body = `Either too rural / disconnected, or the routing graph has no road within one grid spacing of the cell centre. Treated as p = 0.`;
   } else if (p < 0.55) {
     headline = `Walking here loops back on itself — trips run <em class="em-hot">${overStraight}% longer</em> than the crow's flight on average.`;
-    body = `Cul-de-sacs and superblocks dominate; the network forces ~${cv.toFixed(2)}× the straight-line distance, vs ${GRID.toFixed(2)}× for a perfect Manhattan grid.`;
+    body = `Cul-de-sacs and superblocks dominate. Mean circuity ${cv.toFixed(2)}× — much worse than a Manhattan grid (which would give ${GRID_PCT}%).`;
   } else if (p < 0.85) {
-    const overGridShown = Math.max(0, overGrid);
-    headline = `Streets here meander — trips are about <em class="em-hot">${overGridShown}% longer</em> than a perfect grid would give you.`;
-    body = `Mean network distance is ${cv.toFixed(2)}× the crow's flight. A grid would be ${GRID.toFixed(2)}×, the local detour just exceeds that.`;
+    headline = `Streets here meander — trips run <em class="em-hot">${overStraight}% longer</em> than the crow's flight.`;
+    body = `Mean circuity ${cv.toFixed(2)}× straight-line, vs ${GRID.toFixed(2)}× (+${GRID_PCT}%) for a perfect grid. Detours, dead-ends, and offset blocks add up.`;
   } else if (p < 1.05) {
-    headline = `Basically a grid — trips run about <em>${overStraight}% longer</em> than straight-line.`;
-    body = `Mean circuity ${cv.toFixed(2)}, within a hair of the Manhattan-grid limit ${GRID.toFixed(2)}. Geometry is on your side.`;
+    headline = `Basically a grid — trips run <em>${overStraight}% longer</em> than the crow's flight.`;
+    body = `Mean circuity ${cv.toFixed(2)}×, within a hair of the Manhattan-grid limit (${GRID.toFixed(2)}× / +${GRID_PCT}%).`;
   } else if (p < 1.25) {
-    const shorterVsGrid = Math.max(0, -overGrid);
-    headline = `<em>Better than a grid</em> — trips are about <em class="em-cold">${shorterVsGrid}% shorter</em> than Manhattan would give you.`;
-    body = `Mean circuity ${cv.toFixed(2)} vs ${GRID.toFixed(2)} for a grid. Diagonal avenues, chamfered corners, or radial streets cut across the rectangle.`;
+    headline = `<em>Better than a grid</em> — trips run only <em class="em-cold">${overStraight}% longer</em> than the crow's flight.`;
+    body = `Mean circuity ${cv.toFixed(2)}× — beats the +${GRID_PCT}% a perfect grid would impose. Diagonals, chamfered corners, or radial streets cut across the rectangle.`;
   } else {
-    headline = `<em>Exceptional</em> — trips run within <em class="em-cold">${overStraight}%</em> of straight-line distance.`;
-    body = `Mean circuity ${cv.toFixed(2)}. One of the most direct walking networks anywhere — Eixample-class or better.`;
+    headline = `<em>Exceptional</em> — trips run only <em class="em-cold">${overStraight}% longer</em> than the crow's flight.`;
+    body = `Mean circuity ${cv.toFixed(2)}× vs the +${GRID_PCT}% grid baseline. One of the most direct walking networks anywhere — Eixample-class or better.`;
   }
   // percentile copy
   let pctText, pctLabel;
