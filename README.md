@@ -1,4 +1,4 @@
-# isochrone-metric
+# P-scape
 
 A research project: derive an effective L^p exponent at every location in
 a city by routing destinations on a Euclidean ring around each origin and
