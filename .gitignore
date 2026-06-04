@@ -17,3 +17,9 @@ build/
 *.egg-info/
 
 .claude/
+
+# Vercel: web/ is populated at deploy time by vercel.json's buildCommand
+# (copies pnorm/data/explorer.html → web/index.html). Don't commit the copy.
+web/
+.vercel/
+.vercel
