@@ -124,6 +124,28 @@ CITIES: dict[str, City] = {
         center=(38.8951, -77.0364),  # White House-ish
         default_zoom=12,
     ),
+    "lansing": City(
+        key="lansing",
+        name="Lansing, MI",
+        # Lansing core + East Lansing / MSU campus. ~16 × 14 km.
+        bbox=(-84.65, 42.65, -84.45, 42.78),
+        utm_epsg=32616,  # UTM 16N
+        geofabrik_region="north-america/us/michigan",
+        center=(42.7325, -84.5555),
+        default_zoom=12,
+    ),
+    "seattle": City(
+        key="seattle",
+        name="Seattle, WA",
+        # Downtown + Capitol Hill + Ballard + U District + West Seattle +
+        # Beacon Hill + Rainier Valley. ~15 × 24 km. Excludes Bellevue
+        # (different street logic across the lake).
+        bbox=(-122.45, 47.50, -122.25, 47.72),
+        utm_epsg=32610,  # UTM 10N
+        geofabrik_region="north-america/us/washington",
+        center=(47.6062, -122.3321),
+        default_zoom=12,
+    ),
     "venice": City(
         key="venice",
         name="Venice, Italy",

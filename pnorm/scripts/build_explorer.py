@@ -30,8 +30,11 @@ CITY_FOOT_PREFIX = {
     "austin":    "austin_foot",
     "nyc":       "nyc_foot",
     "dc":        "dc_foot",
-    "houston":   "houston_foot_core",
+    "houston":   "houston_foot",
     "sf":        "sf_foot_core",
+    "chicago":   "chicago_foot",
+    "seattle":   "seattle_foot",
+    "lansing":   "lansing_foot",
     "barcelona": "barcelona_foot",
     "paris":     "paris_foot",
 }
@@ -41,6 +44,9 @@ CITY_CAR_PREFIX = {
     "dc":        "dc_car",
     "houston":   "houston_car",
     "sf":        "sf_car",
+    "chicago":   "chicago_car",
+    "seattle":   "seattle_car",
+    "lansing":   "lansing_car",
     "barcelona": "barcelona_car",
     "paris":     "paris_car",
 }
@@ -51,6 +57,9 @@ PRETTY = {
     "dc": "Washington, DC",
     "houston": "Houston, TX",
     "sf": "San Francisco",
+    "chicago": "Chicago, IL",
+    "seattle": "Seattle, WA",
+    "lansing": "Lansing, MI",
     "barcelona": "Barcelona",
     "paris": "Paris",
 }
