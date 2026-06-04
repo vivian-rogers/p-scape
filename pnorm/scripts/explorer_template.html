@@ -354,7 +354,7 @@
   }
   @media (max-width: 720px) { .corner-hint { display: none; } }
 
-  /* ───────────── Intro overlay ───────────── */
+  /* ───────────── Intro overlay (4-slide carousel) ───────────── */
   .intro-back {
     position: fixed; inset: 0; z-index: 1500;
     background: rgba(15, 15, 15, 0.55);
@@ -367,70 +367,220 @@
     background: var(--paper);
     border: 1px solid var(--ink);
     border-radius: 18px;
-    width: min(720px, 100%);
+    width: min(840px, 100%);
     max-height: calc(100dvh - 48px);
     overflow: auto;
     box-shadow: 0 30px 80px rgba(0,0,0,0.35);
+    display: flex; flex-direction: column;
   }
+  .intro-dots {
+    display: flex; justify-content: center; gap: 8px;
+    padding: 18px 0 4px;
+  }
+  .intro-dots .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--rule); cursor: pointer;
+    transition: background .18s, transform .18s;
+  }
+  .intro-dots .dot.active { background: var(--ink); transform: scale(1.25); }
+  .intro-slide { display: none; }
+  .intro-slide.active { display: block; }
   .intro-head {
-    padding: 28px 30px 22px;
-    border-bottom: 1px solid var(--rule);
+    padding: 14px 30px 18px;
   }
   .intro-eyebrow {
     font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
     color: var(--mute); font-weight: 700;
+    font-family: "JetBrains Mono", monospace;
   }
   .intro-h1 {
-    font-family: "Space Grotesk"; font-size: 44px; font-weight: 700;
-    letter-spacing: -0.03em; line-height: 1; margin: 14px 0 12px;
+    font-family: "Space Grotesk"; font-size: 34px; font-weight: 700;
+    letter-spacing: -0.03em; line-height: 1.05; margin: 10px 0 10px;
   }
   .intro-h1 .em-hot  { color: var(--hot-ink); font-style: italic; font-family: "Newsreader", serif; font-weight: 600; }
   .intro-h1 .em-cold { color: var(--cold-ink); font-style: italic; font-family: "Newsreader", serif; font-weight: 600; }
   .intro-deck {
-    font-family: "Newsreader", serif; font-size: 17px; line-height: 1.5;
+    font-family: "Newsreader", serif; font-size: 16px; line-height: 1.5;
     color: var(--ink-2); margin: 0;
   }
-  .intro-tour {
-    padding: 22px 30px;
-    display: grid; gap: 14px;
+  .slide-body {
+    padding: 6px 30px 22px;
   }
-  .tour-row {
-    display: grid; grid-template-columns: 100px 1fr;
-    gap: 18px; align-items: start;
-    padding: 12px 0;
-    border-top: 1px dashed var(--rule);
+
+  /* Two-card layout (used by slides 1 and 2) */
+  .path-cards {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 16px; margin: 6px 0 16px;
   }
-  .tour-row:first-child { border-top: 0; }
-  .tour-city {
-    font-family: "Space Grotesk"; font-weight: 700; font-size: 16px;
+  @media (max-width: 640px) {
+    .path-cards { grid-template-columns: 1fr; }
+  }
+  .path-card {
+    border: 1px solid var(--rule); border-radius: 12px;
+    padding: 14px 14px 12px;
+    background: var(--paper-2);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .path-card.hot  { border-color: rgba(255,93,58,0.35); }
+  .path-card.cold { border-color: rgba(48,82,245,0.30); }
+  .path-card-title {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: "Space Grotesk"; font-weight: 700; font-size: 15px;
     letter-spacing: -0.01em;
   }
-  .tour-city .num {
-    display: block; font-family: "JetBrains Mono", monospace;
-    font-size: 11px; color: var(--mute); font-weight: 500; margin-top: 2px;
+  .path-card-title .sub {
+    font-family: "JetBrains Mono", monospace; font-size: 10px;
+    color: var(--mute); font-weight: 500;
   }
-  .tour-copy {
-    font-family: "Newsreader", serif; font-size: 15px; line-height: 1.45; color: var(--ink-2);
+  .path-card svg { width: 100%; height: auto; display: block; }
+  .path-eq {
+    font-family: "JetBrains Mono", monospace; font-size: 12px;
+    color: var(--ink-2); line-height: 1.5;
+    padding-top: 6px; border-top: 1px dashed var(--rule);
   }
-  .tour-copy em { font-style: italic; color: var(--ink); }
+  .path-eq strong { color: var(--ink); font-weight: 700; }
+  .path-eq .hot-num  { color: var(--hot-ink); }
+  .path-eq .cold-num { color: var(--cold-ink); }
+
+  .slide-takeaway {
+    font-family: "Newsreader", serif; font-size: 16px; line-height: 1.5;
+    color: var(--ink-2); text-align: center;
+    padding: 12px 16px; background: var(--paper-3);
+    border-radius: 10px;
+  }
+  .slide-takeaway strong { color: var(--ink); font-weight: 700; }
+
+  /* Big formula display (slide 2 header) */
+  .formula-banner {
+    background: var(--paper-3); border-radius: 10px;
+    padding: 16px 20px; margin-bottom: 14px;
+    text-align: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 17px; color: var(--ink);
+  }
+  .formula-banner .where {
+    display: block; margin-top: 6px;
+    font-family: "Newsreader", serif; font-style: italic;
+    font-size: 13px; color: var(--ink-3);
+  }
+  .formula-banner sup { font-size: 0.75em; }
+
+  /* Methodology steps (slide 3) */
+  .method-grid {
+    display: grid; grid-template-columns: 1fr 1.1fr;
+    gap: 20px; align-items: center;
+  }
+  @media (max-width: 640px) {
+    .method-grid { grid-template-columns: 1fr; }
+  }
+  .method-illustration {
+    border: 1px solid var(--rule); border-radius: 12px;
+    background: var(--paper-2); padding: 14px;
+  }
+  .method-illustration svg { width: 100%; height: auto; display: block; }
+  .method-steps { display: grid; gap: 14px; }
+  .method-step {
+    display: grid; grid-template-columns: 28px 1fr; gap: 12px;
+    align-items: start;
+  }
+  .method-num {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--ink); color: var(--paper);
+    font-family: "JetBrains Mono", monospace; font-weight: 600;
+    font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .method-text {
+    font-family: "Newsreader", serif; font-size: 15px; line-height: 1.45;
+    color: var(--ink-2);
+  }
+  .method-text strong { color: var(--ink); font-weight: 600; }
+  .method-text code {
+    font-family: "JetBrains Mono", monospace; font-size: 12.5px;
+    background: var(--paper-3); padding: 1px 6px; border-radius: 4px;
+    color: var(--ink);
+  }
+
+  /* Final-slide: control guide */
+  .ready-guide {
+    display: grid; gap: 14px; margin-top: 6px;
+  }
+  .ctl-section {
+    border: 1px solid var(--rule); border-radius: 12px;
+    background: var(--paper-2);
+    padding: 12px 14px;
+  }
+  .ctl-head {
+    display: flex; align-items: baseline; gap: 8px;
+    margin-bottom: 8px;
+  }
+  .ctl-pill {
+    background: var(--ink); color: var(--paper);
+    border-radius: 999px; padding: 3px 10px;
+    font-family: "Space Grotesk"; font-weight: 700; font-size: 11px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .ctl-desc {
+    font-family: "Newsreader", serif; font-style: italic;
+    font-size: 13px; color: var(--ink-3);
+  }
+  .ctl-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 6px 14px;
+  }
+  @media (max-width: 540px) { .ctl-grid { grid-template-columns: 1fr; } }
+  .ctl-opt {
+    background: transparent; border: 0; padding: 6px 0;
+    text-align: left; cursor: pointer; font-family: inherit;
+    display: grid; grid-template-columns: 84px 1fr;
+    gap: 10px; align-items: baseline;
+    border-bottom: 1px dashed transparent;
+    border-radius: 4px;
+    transition: background .12s;
+  }
+  .ctl-opt[data-city]:hover { background: var(--paper-3); }
+  .ctl-opt[data-info] { cursor: default; }
+  .ctl-key {
+    font-family: "Space Grotesk"; font-weight: 700; font-size: 13.5px;
+    color: var(--ink); letter-spacing: -0.01em;
+  }
+  .ctl-blurb {
+    font-family: "Newsreader", serif; font-size: 13px; line-height: 1.4;
+    color: var(--ink-2);
+  }
+  .ctl-grid.single { grid-template-columns: 1fr; }
+  .ctl-grid.single .ctl-opt { grid-template-columns: 100px 1fr; }
+
+  /* Footer / nav */
   .intro-foot {
-    padding: 18px 30px 24px;
+    padding: 14px 30px 20px;
     border-top: 1px solid var(--rule);
     display: flex; justify-content: space-between; align-items: center; gap: 12px;
     flex-wrap: wrap;
+    margin-top: auto;
   }
+  .intro-nav { display: flex; gap: 8px; align-items: center; }
   .intro-cta {
     background: var(--ink); color: var(--paper);
     border: 0; border-radius: 999px;
-    padding: 12px 22px; font-size: 14px; font-weight: 700;
+    padding: 11px 20px; font-size: 14px; font-weight: 700;
     font-family: inherit; cursor: pointer; letter-spacing: -0.005em;
   }
   .intro-cta:hover { background: #1f1f1f; }
+  .intro-prev {
+    background: transparent; color: var(--ink-2);
+    border: 1px solid var(--rule); border-radius: 999px;
+    padding: 10px 16px; font-size: 13px; font-weight: 600;
+    font-family: inherit; cursor: pointer;
+  }
+  .intro-prev:hover { background: var(--paper-2); }
+  .intro-prev[disabled] { opacity: 0.35; cursor: not-allowed; }
   .intro-skip {
     background: none; border: 0; cursor: pointer;
     font-family: "Newsreader", serif; font-style: italic;
-    font-size: 14px; color: var(--ink-3); padding: 10px;
+    font-size: 13px; color: var(--ink-3); padding: 8px;
   }
+  .intro-skip:hover { color: var(--ink); }
 
   /* ───────────── Share toast ───────────── */
   .toast {
@@ -572,38 +722,372 @@
   </div>
 </div>
 
-<!-- Intro overlay -->
+<!-- Intro overlay (4-slide carousel) -->
 <div class="intro-back" id="introBack">
   <div class="intro-card">
-    <div class="intro-head">
-      <div class="intro-eyebrow">p-scape · A field guide to street geometry</div>
-      <h1 class="intro-h1">
-        Some streets <span class="em-hot">get you there</span>.<br>
-        Others make you <span class="em-cold">turn a lot</span>.
-      </h1>
-      <p class="intro-deck">
-        A 5-minute walk in a perfect grid covers more ground than a 5-minute walk
-        through cul-de-sacs. We measured this for six cities, block by block.
-        Lower numbers are sprawl. Higher are geometry on your side.
-      </p>
+    <div class="intro-dots" id="introDots">
+      <span class="dot active" data-slide="0"></span>
+      <span class="dot" data-slide="1"></span>
+      <span class="dot" data-slide="2"></span>
+      <span class="dot" data-slide="3"></span>
     </div>
-    <div class="intro-tour">
-      <div class="tour-row">
-        <div class="tour-city">Houston <span class="num">p̄ ≈ 0.62</span></div>
-        <div class="tour-copy">Suburbs of <em>cul-de-sacs and superblocks</em>. A five-minute walk loops back on itself.</div>
+
+    <!-- ── Slide 1: Houston vs Barcelona ── -->
+    <section class="intro-slide active" data-slide="0">
+      <div class="intro-head">
+        <div class="intro-eyebrow">01 · Two paths, same crow-flight</div>
+        <h1 class="intro-h1">
+          Same A to B. <span class="em-cold">Very different walk.</span>
+        </h1>
+        <p class="intro-deck">
+          Pick two points 1 km apart as the crow flies. How far do you actually walk
+          on the street network? Depends a lot on the street network.
+        </p>
       </div>
-      <div class="tour-row">
-        <div class="tour-city">Manhattan <span class="num">p̄ ≈ 1.04</span></div>
-        <div class="tour-copy">The textbook grid. Every step counts toward where you're going.</div>
+      <div class="slide-body">
+        <div class="path-cards">
+          <div class="path-card hot">
+            <div class="path-card-title">
+              <span>Houston · Greenspoint</span><span class="sub">real OSRM route</span>
+            </div>
+            <svg viewBox="0 0 280 170" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Real Houston route: two points 300m apart on opposite sides of a freeway require a 4.5km detour">
+              <!-- faint reference grid -->
+              <g stroke="#ebe2c9" stroke-width="0.8" fill="none">
+                <path d="M0,30 H280 M0,60 H280 M0,90 H280 M0,120 H280 M0,150 H280"/>
+                <path d="M30,0 V170 M70,0 V170 M110,0 V170 M150,0 V170 M190,0 V170 M230,0 V170 M260,0 V170"/>
+              </g>
+              <!-- crow flight (dashed) - note: very short, since A & B are close -->
+              <line x1="229.8" y1="57" x2="206.5" y2="85.7" stroke="#8a8475" stroke-width="1.2" stroke-dasharray="3 3"/>
+              <!-- real route: 14.8× circuity loop -->
+              <path d="M 229.8,57.0 L 237.9,61.6 L 244.1,65.3 L 252.6,65.3 L 258.1,51.9 L 259.4,52.3 L 262.6,53.2 L 264.6,53.9 L 266.0,54.3 L 265.3,68.5 L 258.0,68.1 L 241.8,70.7 L 224.8,73.0 L 205.4,74.9 L 189.9,75.1 L 174.7,75.3 L 160.5,75.4 L 153.5,75.7 L 146.5,76.1 L 143.1,76.4 L 139.9,76.8 L 136.8,77.2 L 133.7,77.7 L 129.4,78.6 L 125.1,79.5 L 120.1,80.8 L 115.1,82.3 L 103.7,85.6 L 92.4,89.0 L 77.7,93.4 L 69.1,94.7 L 58.0,97.3 L 39.7,101.3 L 26.6,105.2 L 22.5,106.2 L 21.0,106.5 L 20.6,106.6 L 15.5,107.5 L 14.5,108.6 L 14.1,109.4 L 14.0,110.1 L 15.0,116.1 L 15.4,116.8 L 15.9,117.3 L 18.5,118.1 L 33.7,113.8 L 44.0,108.9 L 71.4,98.4 L 93.2,91.5 L 104.6,88.1 L 106.2,87.6 L 116.8,85.7 L 119.6,85.2 L 122.2,84.6 L 127.8,83.4 L 129.8,83.0 L 131.7,82.6 L 133.6,82.3 L 135.7,82.0 L 137.7,81.7 L 139.5,81.5 L 145.7,81.3 L 151.9,81.3 L 163.6,81.4 L 177.8,81.8 L 191.1,82.3 L 194.9,82.5 L 196.9,82.7 L 198.7,83.0 L 200.5,83.4 L 202.0,83.8 L 203.6,84.4 L 205.0,85.0 L 206.5,85.7"
+                    stroke="#ff5d3a" stroke-width="2.2" fill="none"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+              <!-- endpoints -->
+              <circle cx="229.8" cy="57"   r="4.5" fill="#ff5d3a"/>
+              <circle cx="206.5" cy="85.7" r="4.5" fill="#ff5d3a"/>
+              <text x="234" y="52"  font-family="JetBrains Mono" font-size="9" fill="#5a5446">A</text>
+              <text x="195" y="97"  font-family="JetBrains Mono" font-size="9" fill="#5a5446">B</text>
+            </svg>
+            <div class="path-eq">
+              C = d<sub>route</sub> / d<sub>straight</sub><br>
+              = <span class="hot-num">4,487&nbsp;m</span> / <span>303&nbsp;m</span> ≈ <strong>14.8</strong>
+            </div>
+          </div>
+
+          <div class="path-card cold">
+            <div class="path-card-title">
+              <span>Barcelona · Eixample</span><span class="sub">real OSRM route</span>
+            </div>
+            <svg viewBox="0 0 280 170" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Real Barcelona Eixample route: a near-direct walk on the grid">
+              <!-- faint Eixample grid (rotated to match the city's ~45° orientation) -->
+              <g stroke="#ebe2c9" stroke-width="0.8" fill="none">
+                <g transform="rotate(45 140 85)">
+                  <path d="M-100,-20 H400 M-100,5 H400 M-100,30 H400 M-100,55 H400 M-100,80 H400 M-100,105 H400 M-100,130 H400 M-100,155 H400 M-100,180 H400"/>
+                  <path d="M-30,-100 V300 M-5,-100 V300 M20,-100 V300 M45,-100 V300 M70,-100 V300 M95,-100 V300 M120,-100 V300 M145,-100 V300 M170,-100 V300 M195,-100 V300 M220,-100 V300 M245,-100 V300 M270,-100 V300 M295,-100 V300"/>
+                </g>
+              </g>
+              <!-- crow flight (dashed) -->
+              <line x1="67.5" y1="135.7" x2="195.3" y2="14" stroke="#8a8475" stroke-width="1" stroke-dasharray="3 3"/>
+              <!-- real route -->
+              <path d="M 67.5,135.7 L 70.3,138.4 L 83.6,151.4 L 88.3,156.0 L 92.2,152.1 L 105.3,139.2 L 113.2,131.4 L 125.3,118.7 L 133.5,110.2 L 146.4,98.2 L 154.5,90.0 L 167.3,77.1 L 175.3,69.0 L 187.9,56.0 L 195.4,48.5 L 208.4,35.5 L 212.5,31.4 L 208.4,27.3 L 200.9,19.7 L 195.3,14.0"
+                    stroke="#3052f5" stroke-width="2.5" fill="none"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+              <!-- endpoints -->
+              <circle cx="67.5"  cy="135.7" r="4.5" fill="#3052f5"/>
+              <circle cx="195.3" cy="14"    r="4.5" fill="#3052f5"/>
+              <text x="55"  y="135" font-family="JetBrains Mono" font-size="9" fill="#5a5446">A</text>
+              <text x="200" y="13"  font-family="JetBrains Mono" font-size="9" fill="#5a5446">B</text>
+            </svg>
+            <div class="path-eq">
+              C = d<sub>route</sub> / d<sub>straight</sub><br>
+              = <span class="cold-num">1,046&nbsp;m</span> / <span>806&nbsp;m</span> ≈ <strong>1.30</strong>
+            </div>
+          </div>
+        </div>
+        <div class="slide-takeaway">
+          The Houston walk is <strong>≈ 14× the straight-line distance</strong>. Barcelona's is <strong>1.3×</strong>.
+          <em>Same kind of trip — radically different geometry.</em>
+        </div>
       </div>
-      <div class="tour-row">
-        <div class="tour-city">Barcelona <span class="num">p̄ ≈ 1.18</span></div>
-        <div class="tour-copy">Eixample's <em>diagonals</em> beat a grid — you walk almost as the crow flies.</div>
+    </section>
+
+    <!-- ── Slide 2: L¹ vs L² ── -->
+    <section class="intro-slide" data-slide="1">
+      <div class="intro-head">
+        <div class="intro-eyebrow">02 · A knob that interpolates between them</div>
+        <h1 class="intro-h1">
+          One <span class="em-cold">family of distances</span>, one parameter <em>p</em>.
+        </h1>
+        <p class="intro-deck">
+          A city that's a perfect grid <em>feels</em> like the taxicab distance.
+          A city of straight diagonals <em>feels</em> Euclidean. Both are points on
+          the same family of norms.
+        </p>
       </div>
-    </div>
+      <div class="slide-body">
+        <div class="formula-banner">
+          d<sub>p</sub>(A, B) = ( |Δx|<sup>p</sup> + |Δy|<sup>p</sup> )<sup>1/p</sup>
+          <span class="where">p = 1 → taxicab grid · p = 2 → straight-line Euclidean · p &lt; 1 → detours</span>
+        </div>
+        <div class="path-cards">
+          <div class="path-card hot">
+            <div class="path-card-title">
+              <span>p = 1 · Taxicab (L¹)</span><span class="sub">stair-step</span>
+            </div>
+            <svg viewBox="0 0 280 170" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A stair-step path along a grid">
+              <g stroke="#d6cfba" stroke-width="1" fill="none">
+                <path d="M0,30 H280  M0,60 H280  M0,90 H280  M0,120 H280  M0,150 H280"/>
+                <path d="M30,0 V170  M70,0 V170  M110,0 V170  M150,0 V170  M190,0 V170  M230,0 V170"/>
+              </g>
+              <!-- stair path A(50,140) → B(230,40); Δx = 180 px = 3 grid blocks, Δy = 100 px ≈ 4 blocks -->
+              <path d="M50,140 L110,140 L110,90 L170,90 L170,40 L230,40"
+                    stroke="#ff5d3a" stroke-width="2.8" fill="none"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="50"  cy="140" r="4.5" fill="#ff5d3a"/>
+              <circle cx="230" cy="40"  r="4.5" fill="#ff5d3a"/>
+              <text x="42"  y="158" font-family="JetBrains Mono" font-size="9" fill="#5a5446">A</text>
+              <text x="232" y="32"  font-family="JetBrains Mono" font-size="9" fill="#5a5446">B</text>
+              <text x="135" y="160" font-family="JetBrains Mono" font-size="10" fill="#5a5446">Δx = 3</text>
+              <text x="240" y="92"  font-family="JetBrains Mono" font-size="10" fill="#5a5446">Δy = 4</text>
+            </svg>
+            <div class="path-eq">
+              d<sub>1</sub> = |Δx| + |Δy|<br>
+              = 3 + 4 = <strong>7</strong>
+            </div>
+          </div>
+
+          <div class="path-card cold">
+            <div class="path-card-title">
+              <span>p = 2 · Euclidean (L²)</span><span class="sub">straight line</span>
+            </div>
+            <svg viewBox="0 0 280 170" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A straight diagonal across a grid with right triangle">
+              <g stroke="#d6cfba" stroke-width="1" fill="none">
+                <path d="M0,30 H280  M0,60 H280  M0,90 H280  M0,120 H280  M0,150 H280"/>
+                <path d="M30,0 V170  M70,0 V170  M110,0 V170  M150,0 V170  M190,0 V170  M230,0 V170"/>
+              </g>
+              <!-- right-triangle legs (dashed) -->
+              <line x1="50" y1="140" x2="230" y2="140" stroke="#8a8475" stroke-width="1" stroke-dasharray="3 3"/>
+              <line x1="230" y1="140" x2="230" y2="40" stroke="#8a8475" stroke-width="1" stroke-dasharray="3 3"/>
+              <!-- hypotenuse -->
+              <line x1="50" y1="140" x2="230" y2="40" stroke="#3052f5" stroke-width="2.8" stroke-linecap="round"/>
+              <circle cx="50"  cy="140" r="4.5" fill="#3052f5"/>
+              <circle cx="230" cy="40"  r="4.5" fill="#3052f5"/>
+              <text x="42"  y="158" font-family="JetBrains Mono" font-size="9" fill="#5a5446">A</text>
+              <text x="232" y="32"  font-family="JetBrains Mono" font-size="9" fill="#5a5446">B</text>
+              <text x="135" y="158" font-family="JetBrains Mono" font-size="10" fill="#5a5446">Δx = 3</text>
+              <text x="240" y="92"  font-family="JetBrains Mono" font-size="10" fill="#5a5446">Δy = 4</text>
+            </svg>
+            <div class="path-eq">
+              d<sub>2</sub> = √( Δx² + Δy² )<br>
+              = √( 9 + 16 ) = √25 = <strong>5</strong>
+            </div>
+          </div>
+        </div>
+        <div class="slide-takeaway">
+          Same two points: <strong>7</strong> blocks on a grid, <strong>5</strong> as the crow flies.
+          The exponent <em>p</em> tells you which one a city is closer to.
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Slide 3: Methodology ── -->
+    <section class="intro-slide" data-slide="2">
+      <div class="intro-head">
+        <div class="intro-eyebrow">03 · How we measure it</div>
+        <h1 class="intro-h1">
+          Probe the network, then <span class="em-cold">solve for <em>p</em></span>.
+        </h1>
+        <p class="intro-deck">
+          For every point in the city we sample many routes outward, average their
+          circuity, and back out the best-fit exponent.
+        </p>
+      </div>
+      <div class="slide-body">
+        <div class="method-grid">
+          <div class="method-illustration">
+            <svg viewBox="0 0 280 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Origin point with a ring of destinations, routes drawn to each">
+              <!-- faint street grid -->
+              <g stroke="#e6dec7" stroke-width="0.8" fill="none">
+                <path d="M0,20 H280 M0,55 H280 M0,90 H280 M0,125 H280 M0,160 H280 M0,195 H280"/>
+                <path d="M20,0 V220 M60,0 V220 M100,0 V220 M140,0 V220 M180,0 V220 M220,0 V220 M260,0 V220"/>
+              </g>
+              <!-- ring (dashed) -->
+              <circle cx="140" cy="110" r="80" stroke="#8a8475" stroke-width="1"
+                      stroke-dasharray="3 4" fill="none"/>
+              <!-- 12 destination dots on ring -->
+              <g fill="#0f0f0f">
+                <circle cx="220" cy="110" r="3"/>
+                <circle cx="209.3" cy="150" r="3"/>
+                <circle cx="180" cy="179.3" r="3"/>
+                <circle cx="140" cy="190" r="3"/>
+                <circle cx="100" cy="179.3" r="3"/>
+                <circle cx="70.7" cy="150" r="3"/>
+                <circle cx="60" cy="110" r="3"/>
+                <circle cx="70.7" cy="70" r="3"/>
+                <circle cx="100" cy="40.7" r="3"/>
+                <circle cx="140" cy="30" r="3"/>
+                <circle cx="180" cy="40.7" r="3"/>
+                <circle cx="209.3" cy="70" r="3"/>
+              </g>
+              <!-- a few example routes from origin (curvy, network-following) -->
+              <g stroke="#3052f5" stroke-width="1.6" fill="none" opacity="0.85" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M140,110 L180,110 L180,55 L209.3,55 L209.3,70"/>
+                <path d="M140,110 L140,55 L140,40 L140,30"/>
+                <path d="M140,110 L100,110 L100,160 L100,179.3"/>
+                <path d="M140,110 L220,110"/>
+                <path d="M140,110 L180,110 L180,160 L180,179.3"/>
+              </g>
+              <!-- origin -->
+              <circle cx="140" cy="110" r="5.5" fill="#ff5d3a" stroke="#0f0f0f" stroke-width="1"/>
+              <text x="148" y="106" font-family="JetBrains Mono" font-size="10" fill="#0f0f0f">x</text>
+              <!-- R label -->
+              <line x1="140" y1="110" x2="219" y2="110" stroke="#5a5446" stroke-width="1" stroke-dasharray="2 2"/>
+              <text x="172" y="105" font-family="JetBrains Mono" font-size="10" fill="#5a5446">R</text>
+            </svg>
+          </div>
+          <div class="method-steps">
+            <div class="method-step">
+              <div class="method-num">1</div>
+              <div class="method-text">
+                Drop <strong>N destinations</strong> on a Euclidean ring of radius
+                <code>R</code> around the origin <code>x</code>.
+                The street network comes from <strong>OpenStreetMap</strong>.
+              </div>
+            </div>
+            <div class="method-step">
+              <div class="method-num">2</div>
+              <div class="method-text">
+                Route to each destination. Average the ratio of network
+                distance to straight-line distance:
+                <code>C(x; R) = mean( d_route / d_euclid )</code>
+              </div>
+            </div>
+            <div class="method-step">
+              <div class="method-num">3</div>
+              <div class="method-text">
+                Invert against the closed-form mean circuity
+                <code>M(p)</code> to recover <strong>p(x)</strong>. Repeat for every
+                cell. That's the map.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Slide 4: Ready ── -->
+    <section class="intro-slide" data-slide="3">
+      <div class="intro-head">
+        <div class="intro-eyebrow">04 · Off you go</div>
+        <h1 class="intro-h1">
+          Ready to <span class="em-cold">explore?</span>
+        </h1>
+        <p class="intro-deck">
+          Pick a city to start, or jump straight in. The <em>City</em>, <em>Mode</em>,
+          and <em>Radius</em> chips up top let you compare side by side.
+        </p>
+      </div>
+      <div class="slide-body">
+        <div class="ready-guide">
+
+          <div class="ctl-section">
+            <div class="ctl-head">
+              <span class="ctl-pill">City</span>
+              <span class="ctl-desc">click one to jump straight in</span>
+            </div>
+            <div class="ctl-grid">
+              <button class="ctl-opt" data-city="houston">
+                <span class="ctl-key">Houston</span>
+                <span class="ctl-blurb">sprawl, cul-de-sacs, freeway moats</span>
+              </button>
+              <button class="ctl-opt" data-city="nyc">
+                <span class="ctl-key">Manhattan</span>
+                <span class="ctl-blurb">the textbook orthogonal grid</span>
+              </button>
+              <button class="ctl-opt" data-city="barcelona">
+                <span class="ctl-key">Barcelona</span>
+                <span class="ctl-blurb">Eixample diagonals beat a grid</span>
+              </button>
+              <button class="ctl-opt" data-city="paris">
+                <span class="ctl-key">Paris</span>
+                <span class="ctl-blurb">Haussmann radial boulevards</span>
+              </button>
+              <button class="ctl-opt" data-city="dc">
+                <span class="ctl-key">DC</span>
+                <span class="ctl-blurb">L'Enfant grid + diagonal avenues</span>
+              </button>
+              <button class="ctl-opt" data-city="chicago">
+                <span class="ctl-key">Chicago</span>
+                <span class="ctl-blurb">mile-grid Midwest</span>
+              </button>
+              <button class="ctl-opt" data-city="sf">
+                <span class="ctl-key">SF</span>
+                <span class="ctl-blurb">grid colliding with hills</span>
+              </button>
+              <button class="ctl-opt" data-city="seattle">
+                <span class="ctl-key">Seattle</span>
+                <span class="ctl-blurb">grid bent by water and slope</span>
+              </button>
+              <button class="ctl-opt" data-city="austin">
+                <span class="ctl-key">Austin</span>
+                <span class="ctl-blurb">downtown grid, suburban sprawl</span>
+              </button>
+              <button class="ctl-opt" data-city="lansing">
+                <span class="ctl-key">Lansing</span>
+                <span class="ctl-blurb">small-city Michigan square mile</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="ctl-section">
+            <div class="ctl-head">
+              <span class="ctl-pill">Mode</span>
+              <span class="ctl-desc">which network do you walk / drive on?</span>
+            </div>
+            <div class="ctl-grid">
+              <div class="ctl-opt" data-info>
+                <span class="ctl-key">Walking</span>
+                <span class="ctl-blurb">foot graph — alleys, footpaths, park cut-throughs</span>
+              </div>
+              <div class="ctl-opt" data-info>
+                <span class="ctl-key">Driving</span>
+                <span class="ctl-blurb">car graph — major roads only, no pedestrian shortcuts</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="ctl-section">
+            <div class="ctl-head">
+              <span class="ctl-pill">Radius</span>
+              <span class="ctl-desc">how far each probe reaches from each cell</span>
+            </div>
+            <div class="ctl-grid single">
+              <div class="ctl-opt" data-info>
+                <span class="ctl-key">200 – 400 m</span>
+                <span class="ctl-blurb">a short walk — picks up <em>block-scale</em> geometry, sensitive to local cul-de-sacs</span>
+              </div>
+              <div class="ctl-opt" data-info>
+                <span class="ctl-key">800 – 1,600 m</span>
+                <span class="ctl-blurb">a 10–20 min walk — picks up <em>neighborhood-scale</em> grid structure</span>
+              </div>
+              <div class="ctl-opt" data-info>
+                <span class="ctl-key">1 – 3 km (driving)</span>
+                <span class="ctl-blurb">across-town routing — captures arterial layout and freeway topology</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer / nav -->
     <div class="intro-foot">
-      <button class="intro-skip" id="introSkip">Skip the tour</button>
-      <button class="intro-cta" id="introStart">Start with Manhattan →</button>
+      <button class="intro-skip" id="introSkip">Skip</button>
+      <div class="intro-nav">
+        <button class="intro-prev" id="introPrev" disabled>← Back</button>
+        <button class="intro-cta" id="introNext">Next →</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1276,17 +1760,73 @@ document.getElementById('shareBtn').addEventListener('click', async () => {
   } catch (_) {}
 });
 
-// ────────────── Intro overlay ──────────────
-const introBack = document.getElementById('introBack');
-function hideIntro() { introBack.classList.add('hidden'); localStorage.setItem('pscape_seen', '1'); }
-document.getElementById('introSkip').addEventListener('click', hideIntro);
-document.getElementById('introStart').addEventListener('click', () => {
+// ────────────── Intro overlay (4-slide carousel) ──────────────
+const introBack  = document.getElementById('introBack');
+const introSlides = Array.from(document.querySelectorAll('.intro-slide'));
+const introDots   = Array.from(document.querySelectorAll('#introDots .dot'));
+const introPrev   = document.getElementById('introPrev');
+const introNext   = document.getElementById('introNext');
+const TOTAL_SLIDES = introSlides.length;
+let curSlide = 0;
+
+function showSlide(i) {
+  curSlide = Math.max(0, Math.min(TOTAL_SLIDES - 1, i));
+  introSlides.forEach((s, idx) => s.classList.toggle('active', idx === curSlide));
+  introDots.forEach((d, idx) => d.classList.toggle('active', idx === curSlide));
+  introPrev.disabled = curSlide === 0;
+  if (curSlide === TOTAL_SLIDES - 1) {
+    introNext.textContent = 'Start exploring →';
+    introNext.dataset.last = '1';
+  } else {
+    introNext.textContent = 'Next →';
+    delete introNext.dataset.last;
+  }
+  // Scroll the card back to top on slide change
+  const card = introBack.querySelector('.intro-card');
+  if (card) card.scrollTop = 0;
+}
+
+function hideIntro() {
+  introBack.classList.add('hidden');
+  localStorage.setItem('pscape_seen', '1');
+}
+function startWithCity(cityKey) {
   hideIntro();
-  cityPick.value = PAYLOAD.cities.includes('nyc') ? 'nyc' : PAYLOAD.cities[0];
+  if (cityKey && PAYLOAD.cities.includes(cityKey)) cityPick.value = cityKey;
   refreshRadiusDropdown();
   renderLayer();
+}
+
+introPrev.addEventListener('click', () => showSlide(curSlide - 1));
+introNext.addEventListener('click', () => {
+  if (introNext.dataset.last) {
+    // Default last-slide CTA: start with Manhattan if available
+    const preferred = PAYLOAD.cities.includes('nyc') ? 'nyc' : PAYLOAD.cities[0];
+    startWithCity(preferred);
+  } else {
+    showSlide(curSlide + 1);
+  }
 });
+introDots.forEach(d => {
+  d.addEventListener('click', () => showSlide(+d.dataset.slide));
+});
+document.querySelectorAll('.ctl-opt[data-city]').forEach(btn => {
+  btn.addEventListener('click', () => startWithCity(btn.dataset.city));
+});
+document.getElementById('introSkip').addEventListener('click', hideIntro);
+document.addEventListener('keydown', (e) => {
+  if (introBack.classList.contains('hidden')) return;
+  if (e.key === 'ArrowRight' || e.key === 'Enter') {
+    introNext.click(); e.preventDefault();
+  } else if (e.key === 'ArrowLeft') {
+    if (!introPrev.disabled) introPrev.click(); e.preventDefault();
+  } else if (e.key === 'Escape') {
+    hideIntro(); e.preventDefault();
+  }
+});
+
 document.getElementById('tourBtn').addEventListener('click', () => {
+  showSlide(0);
   introBack.classList.remove('hidden');
 });
 
@@ -1308,8 +1848,13 @@ function boot() {
     }
   }
 
-  // Show intro for first-timers (and when no permalink view present)
-  if (localStorage.getItem('pscape_seen') !== '1' && !(link && link.v)) {
+  // Show intro for first-timers (and when no permalink view present).
+  // ?tour=1 in the URL force-shows the intro regardless of localStorage,
+  // useful for previewing without clearing storage.
+  const forceTour = new URLSearchParams(location.search).get('tour') === '1';
+  const seen = localStorage.getItem('pscape_seen') === '1';
+  const hasPermalinkView = !!(link && link.v);
+  if (forceTour || (!seen && !hasPermalinkView)) {
     /* keep visible */
   } else {
     introBack.classList.add('hidden');
