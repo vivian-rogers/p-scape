@@ -12,6 +12,7 @@ dependencies = [
     "tqdm",
     "folium",
     "branca",
+    "shapely",
 ]
 
 [project.optional-dependencies]

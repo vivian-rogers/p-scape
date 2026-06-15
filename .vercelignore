@@ -1,0 +1,23 @@
+# Vercel only needs `pnorm/data/explorer.html` and `vercel.json` to build.
+# Everything else in pnorm/data/ is multi-GB local research state (OSM
+# extracts, OSRM tile dirs, per-city heatmap HTML files) that's gitignored
+# but would otherwise be uploaded by `vercel deploy`.
+#
+# The raster pipeline (scripts/rasterize.py + scripts/build_explorer.py) now
+# emits a ~60 MB single-file explorer that fits the Vercel 100 MB per-file
+# cap without the old --skip / --keep / --skip-extra trimming dance.
+pnorm/data/*
+!pnorm/data/explorer.html
+
+# Local-only directories
+.venv/
+.vercel/
+**/__pycache__/
+**/*.pyc
+.ruff_cache/
+.pytest_cache/
+.ipynb_checkpoints/
+pnorm/notebooks/
+
+# Backup branch artifacts
+backup-pre-rewrite*

@@ -1,13 +1,11 @@
-# data/ is mostly heavy intermediate artifacts (OSM extracts, OSRM tile
-# dirs, per-city HTML maps that exceed GitHub's 100 MB single-file limit).
-# We do commit:
-#   - the post-processed .npz grids (small, the actual research data)
-#   - the single-page explorer.html (so collaborators can preview without
-#     re-running the pipeline)
-# Everything else under data/ stays local.
+# data/ is heavy intermediate artifacts (OSM extracts, OSRM tile dirs,
+# per-city HTML maps, the per-ray `d_route_m` cache). We commit ONLY the
+# single-page explorer.html — the durable deploy artifact and the only
+# reproducibility guarantee collaborators need to view the catalog. NPZs
+# are regenerable from the scripts/rerun_*_sq.sh pipeline.
 data/*
-!data/*.npz
 !data/explorer.html
+!data/.gitkeep
 
 .venv/
 __pycache__/

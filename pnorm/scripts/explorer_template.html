@@ -29,13 +29,20 @@
     --cold-ink: #1f3bbd;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; height: 100%; background: var(--paper); color: var(--ink);
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
     font-family: "Space Grotesk", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
-    overscroll-behavior: none; }
+    overscroll-behavior: none;
+    height: 100vh;          /* fallback for browsers without dvh */
+    height: 100dvh;         /* dvh wins on mobile — excludes the URL bar */
+    overflow: hidden;       /* no page-level scroll; the map fills the viewport */
+  }
 
   /* ───────────── App shell ───────────── */
-  #app { display: grid; grid-template-rows: auto 1fr; height: 100dvh; height: 100vh; min-height: 0; }
+  #app { display: grid; grid-template-rows: auto 1fr; min-height: 0;
+    height: 100vh;          /* fallback */
+    height: 100dvh;         /* mobile-correct */
+  }
 
   /* ───────────── Top bar ───────────── */
   #topbar {
@@ -146,10 +153,12 @@
   @media (max-width: 720px) {
     #topbar { padding: 10px 12px; grid-template-columns: auto 1fr; gap: 10px; }
     .brand-name { font-size: 16px; }
-    .chips { grid-column: 1 / -1; padding-bottom: 2px; overflow-x: auto;
-             flex-wrap: nowrap; justify-content: flex-start;
-             scrollbar-width: none; -ms-overflow-style: none; }
-    .chips::-webkit-scrollbar { display: none; }
+    /* Wrap chips to multiple rows instead of hiding them behind an invisible
+       horizontal scroll. Costs ~30 px of vertical space per extra row, gains
+       universal reachability. */
+    .chips { grid-column: 1 / -1;
+             flex-wrap: wrap; justify-content: flex-start;
+             row-gap: 6px; }
     .chip { flex-shrink: 0; }
   }
 
@@ -230,17 +239,41 @@
     color: var(--ink-2); margin: 10px 0 0;
   }
   .hover-stats {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
     margin-top: 12px; padding-top: 10px;
     border-top: 1px dashed var(--rule);
   }
-  .hover-stat-n {
+  .hover-table {
+    width: 100%; border-collapse: collapse;
     font-family: "Space Grotesk";
-    font-size: 22px; font-weight: 700; letter-spacing: -0.02em; line-height: 1;
   }
-  .hover-stat-l {
-    font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
-    color: var(--mute); margin-top: 4px; font-weight: 600;
+  .hover-table thead th {
+    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--mute); font-weight: 600;
+    padding: 0 0 6px 0; text-align: right;
+  }
+  .hover-table thead th:first-child { text-align: left; }
+  .hover-table tbody th {
+    font-size: 11px; letter-spacing: 0.05em;
+    color: var(--ink-2); font-weight: 500;
+    text-align: left; padding: 6px 0;
+    font-family: "Newsreader", serif;
+  }
+  .hover-table tbody th i { font-style: italic; }
+  .hover-table tbody td {
+    font-size: 19px; font-weight: 700; letter-spacing: -0.02em;
+    color: var(--ink); padding: 4px 0 4px 12px; text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .hover-table tbody td.active {
+    color: var(--ink); border-bottom: 2px solid var(--ink);
+  }
+  .hover-table tbody td.muted { color: var(--ink-3); }
+  .hover-rank {
+    margin-top: 10px; padding-top: 8px;
+    border-top: 1px dashed var(--rule);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; color: var(--ink-2);
+    text-align: center;
   }
 
   /* ───────────── Legend (bottom center) ───────────── */
@@ -322,15 +355,53 @@
     font-style: normal; font-size: 10px; color: var(--mute); margin-bottom: 1px;
   }
   @media (max-width: 720px) {
-    .hero { top: 10px; left: 10px; right: 10px; max-width: none; padding: 12px 14px 10px; }
-    .hero-city { font-size: 26px; }
+    /* Hero: just eyebrow + city. Drop the descriptive sub paragraph and the
+       rank line — both dominate vertical space on a phone. */
+    .hero { top: 8px; left: 8px; right: 8px; max-width: none; padding: 8px 12px 6px; }
+    .hero-eyebrow { font-size: 10px; }
+    .hero-city { font-size: 20px; line-height: 1.05; }
+    .hero-sub, .hero-rank { display: none; }
+
+    /* Chips: tighten so wrapping doesn't eat ~200px of vertical space. */
+    .chip { padding: 5px 10px; font-size: 12px; gap: 6px; }
+    .chip-label { font-size: 9px; }
+
+    /* Legend: title + bar + anchor labels only. Hide the wordy description
+       AND the L^p formula equation row. */
+    .legend { bottom: 8px; padding: 6px 10px 4px; font-size: 10px; }
+    .legend-sub, .legend-eq { display: none; }
+    .legend-field { font-size: 13px; }
+
+    /* Zoom-warn: move from middle-of-map to right below the toolbar so it
+       stops covering the heatmap. */
+    .zoom-warn { top: auto; bottom: 90px; }
+  }
+
+  /* Touch-only devices have no cursor. Instead of hovering, we hand the same
+     card to a double-tap gesture: bottom-right above the legend, compact
+     content (just the four stats — mean/median × p/circuity), hidden until
+     a cell is actually tapped. Desktop (with cursor) stays untouched: this
+     entire block only matches when the primary input has no hover. */
+  @media (hover: none) {
     .hover-card {
-      top: auto; right: 10px; left: 10px; bottom: 130px;
-      width: auto; max-width: none;
-      padding: 12px 14px;
+      top: auto; left: auto;
+      right: 8px; bottom: 96px;
+      width: min(290px, calc(100vw - 16px)); max-width: none;
+      padding: 10px 12px;
     }
-    .hover-headline { font-size: 18px; }
-    .legend { bottom: 10px; padding: 10px 12px 8px; }
+    /* idle state = no cell tapped yet → don't render anything */
+    .hover-card.idle { display: none; }
+    /* On touch we keep the eyebrow (cell coordinates) and the stats table.
+       The big tier headline / body paragraph / rank line all hide so the
+       card stays palm-sized above the legend. */
+    .hover-card .hover-headline,
+    .hover-card .hover-body,
+    .hover-card .hover-rank { display: none; }
+    .hover-stats { margin-top: 0; padding-top: 0; border-top: none; }
+    .hover-eyebrow { font-size: 9px; letter-spacing: 0.14em; }
+    .hover-table thead th { font-size: 9px; padding-bottom: 4px; }
+    .hover-table tbody td { font-size: 16px; }
+    .hover-table tbody th { font-size: 10px; }
   }
 
   /* ───────────── Zoom warning ───────────── */
@@ -500,6 +571,46 @@
     background: var(--paper-3); padding: 1px 6px; border-radius: 4px;
     color: var(--ink);
   }
+  .math-block {
+    font-family: "Newsreader", serif; font-style: italic;
+    font-size: 16px; line-height: 1.5;
+    text-align: center; margin: 8px 0 6px;
+    color: var(--ink);
+  }
+  .math-block sup, .math-block sub { font-style: normal; font-size: 0.78em; }
+  .math-block em { font-style: italic; }
+
+  /* C_Lp(p) plots (slide 4) */
+  .inversion-plot {
+    margin: 6px auto 0; max-width: 100%;
+  }
+  .inversion-plot svg {
+    width: 100%; height: auto; display: block;
+  }
+  .curves-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 4px 0 12px;
+  }
+  .curve-panel {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .curve-panel-title {
+    font-family: "Newsreader", serif;
+    font-size: 12px; font-style: italic;
+    color: var(--ink-3); text-align: center;
+    letter-spacing: 0.03em;
+  }
+  .curve-panel .formula-banner {
+    padding: 10px 12px; font-size: 13.5px; margin-bottom: 0;
+  }
+  .curve-panel .formula-banner .where {
+    font-size: 11px; margin-top: 4px;
+  }
+  @media (max-width: 640px) {
+    .curves-pair { grid-template-columns: 1fr; }
+  }
 
   /* Final-slide: control guide */
   .ready-guide {
@@ -618,7 +729,7 @@
         <div class="brand-name">p-scape</div>
       </div>
       <div class="brand-tagline">A field guide to street geometry</div>
-      <a class="brand-learn" id="learnMore" href="https://substack.com/" target="_blank" rel="noopener">Learn more →</a>
+      <a class="brand-learn" id="learnMore" href="https://jazzloafing.substack.com/p/manhattan-outperforms-the-taxicab" target="_blank" rel="noopener">Learn more →</a>
     </div>
     <div></div>
     <div class="chips" id="chips">
@@ -648,8 +759,10 @@
         <span class="chip-value" id="chipField">effective <i>p</i></span>
         <span class="chip-caret">▾</span>
         <select class="native" id="fieldPick">
-          <option value="p">effective p</option>
-          <option value="circuity">circuity</option>
+          <option value="p_median" selected>effective p (median)</option>
+          <option value="p">effective p (mean)</option>
+          <option value="circuity_median">circuity (median)</option>
+          <option value="circuity">circuity (mean)</option>
         </select>
       </label>
       <label class="chip chip-slider" title="Layer opacity">
@@ -675,26 +788,36 @@
     </div>
 
     <div class="hover-card idle" id="hoverCard">
-      <div class="hover-eyebrow" id="hoverEyebrow">Hover any block</div>
+      <div class="hover-eyebrow" id="hoverEyebrow">Hover a cell</div>
       <h2 class="hover-headline" id="hoverHeadline">
-        How <em class="em-hot">turn-y</em> is your <em class="em-cold">neighborhood</em>?
+        Per-cell L<sup>p</sup> fit
       </h2>
       <p class="hover-body" id="hoverBody">
-        Move your cursor across the map. Each hexagon is a quarter-block of street network — we'll tell you what its geometry means for getting around.
+        Each hex is one origin. Mean averages 48 ring rays; median is robust to a few high-detour outliers.
       </p>
       <div class="hover-stats" id="hoverStats" style="display:none">
-        <div>
-          <div class="hover-stat-n" id="hoverP">—</div>
-          <div class="hover-stat-l">effective <i>p</i></div>
-        </div>
-        <div>
-          <div class="hover-stat-n" id="hoverPct">—</div>
-          <div class="hover-stat-l" id="hoverPctL">percentile</div>
-        </div>
+        <table class="hover-table">
+          <thead>
+            <tr><th></th><th>mean</th><th>median</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th>effective <i>p</i></th>
+              <td id="hoverPMean">—</td>
+              <td id="hoverPMedian">—</td>
+            </tr>
+            <tr>
+              <th>circuity</th>
+              <td id="hoverCMean">—</td>
+              <td id="hoverCMedian">—</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="hover-rank" id="hoverRank">—</div>
       </div>
     </div>
 
-    <div class="zoom-warn" id="zoomWarn">Zoom in — hexes are sub-pixel here.</div>
+    <div class="zoom-warn" id="zoomWarn" style="display:none">Zoom in — hexes are sub-pixel here.</div>
 
     <div class="legend" id="legend">
       <div class="legend-head">
@@ -730,21 +853,25 @@
       <span class="dot" data-slide="1"></span>
       <span class="dot" data-slide="2"></span>
       <span class="dot" data-slide="3"></span>
+      <span class="dot" data-slide="4"></span>
     </div>
 
     <!-- ── Slide 1: Houston vs Barcelona ── -->
     <section class="intro-slide active" data-slide="0">
       <div class="intro-head">
-        <div class="intro-eyebrow">01 · Two paths, same crow-flight</div>
+        <div class="intro-eyebrow">01</div>
         <h1 class="intro-h1">
-          Same A to B. <span class="em-cold">Very different walk.</span>
+          Same A to B. <span class="em-cold">Very different path.</span>
         </h1>
-        <p class="intro-deck">
-          Pick two points 1 km apart as the crow flies. How far do you actually walk
-          on the street network? Depends a lot on the street network.
-        </p>
       </div>
       <div class="slide-body">
+        <div class="formula-banner">
+          C(<em>P</em>) = d<sub>route</sub> / d<sub>straight</sub>
+          <span class="where">
+            Circuity: route length as a multiple of crow-flight. C = 1 is
+            direct; C = 1.3 means you traveled 1.3× as far; C = 15 means 15×.
+          </span>
+        </div>
         <div class="path-cards">
           <div class="path-card hot">
             <div class="path-card-title">
@@ -805,8 +932,11 @@
           </div>
         </div>
         <div class="slide-takeaway">
-          The Houston walk is <strong>≈ 14× the straight-line distance</strong>. Barcelona's is <strong>1.3×</strong>.
-          <em>Same kind of trip — radically different geometry.</em>
+          Houston's <strong>C ≈ 14.8</strong> isn't typical sprawl — a single
+          uncrossable barrier forces the route the long way around. Eixample's
+          <strong>C ≈ 1.30</strong> reflects Cerdà's 1859 plan: a 45°-rotated grid
+          with chamfered octagonal corners, cut by the <em>Diagonal</em> and
+          <em>Meridiana</em> avenues.
         </div>
       </div>
     </section>
@@ -814,15 +944,10 @@
     <!-- ── Slide 2: L¹ vs L² ── -->
     <section class="intro-slide" data-slide="1">
       <div class="intro-head">
-        <div class="intro-eyebrow">02 · A knob that interpolates between them</div>
+        <div class="intro-eyebrow">02</div>
         <h1 class="intro-h1">
           One <span class="em-cold">family of distances</span>, one parameter <em>p</em>.
         </h1>
-        <p class="intro-deck">
-          A city that's a perfect grid <em>feels</em> like the taxicab distance.
-          A city of straight diagonals <em>feels</em> Euclidean. Both are points on
-          the same family of norms.
-        </p>
       </div>
       <div class="slide-body">
         <div class="formula-banner">
@@ -884,8 +1009,11 @@
           </div>
         </div>
         <div class="slide-takeaway">
-          Same two points: <strong>7</strong> blocks on a grid, <strong>5</strong> as the crow flies.
-          The exponent <em>p</em> tells you which one a city is closer to.
+          <em>p</em> is a continuous knob, not just the three named cases.
+          Above 2 the unit ball squares off — diagonal shortcuts beat any
+          right-angle grid. Real street networks settle at some effective
+          <em>p</em> in this family; the next slide is how we read it off
+          the routing data.
         </div>
       </div>
     </section>
@@ -893,14 +1021,10 @@
     <!-- ── Slide 3: Methodology ── -->
     <section class="intro-slide" data-slide="2">
       <div class="intro-head">
-        <div class="intro-eyebrow">03 · How we measure it</div>
+        <div class="intro-eyebrow">03</div>
         <h1 class="intro-h1">
-          Probe the network, then <span class="em-cold">solve for <em>p</em></span>.
+          Probe the network, then <span class="em-cold">solve for effective <em>p</em></span>.
         </h1>
-        <p class="intro-deck">
-          For every point in the city we sample many routes outward, average their
-          circuity, and back out the best-fit exponent.
-        </p>
       </div>
       <div class="slide-body">
         <div class="method-grid">
@@ -949,25 +1073,47 @@
             <div class="method-step">
               <div class="method-num">1</div>
               <div class="method-text">
-                Drop <strong>N destinations</strong> on a Euclidean ring of radius
-                <code>R</code> around the origin <code>x</code>.
-                The street network comes from <strong>OpenStreetMap</strong>.
+                <strong>Sample.</strong> Place <code>N = 48</code> destinations
+                uniformly on a Euclidean ring of radius <code>R</code> around
+                origin <code>x</code>, then route to each on the OpenStreetMap
+                graph via OSRM. Reject rays whose snapped endpoint lies more than
+                <code>0.25·R</code> from the requested point — the origin is on a
+                disconnected component or in a road-sparse patch.
               </div>
             </div>
             <div class="method-step">
               <div class="method-num">2</div>
               <div class="method-text">
-                Route to each destination. Average the ratio of network
-                distance to straight-line distance:
-                <code>C(x; R) = mean( d_route / d_euclid )</code>
+                <strong>Summarize per cell.</strong> Across the <em>N</em>
+                rays that survived the step-1 snap filter, take two summaries
+                of d<sub>route</sub> / d<sub>euclid</sub>: the
+                <strong>mean</strong> — every direction weighted equally —
+                and the <strong>median</strong> — robust to outlier rays.
+                Call them <code>C̄(<em>x</em>; <em>R</em>)</code> and
+                <code>C̃(<em>x</em>; <em>R</em>)</code>. Use the
+                <em>snapped</em> endpoint coordinates for d<sub>euclid</sub> —
+                the requested ring points would bias the ratio.
               </div>
             </div>
             <div class="method-step">
               <div class="method-num">3</div>
               <div class="method-text">
-                Invert against the closed-form mean circuity
-                <code>M(p)</code> to recover <strong>p(x)</strong>. Repeat for every
-                cell. That's the map.
+                <strong>Invert to effective <em>p</em>.</strong> For a pure
+                L<sup><em>p</em></sup> norm at scale <em>R</em>, each summary
+                becomes a closed-form function of <em>p</em> alone —
+                <code>C̄(<em>p</em>)</code> for the mean and
+                <code>C̃(<em>p</em>)</code> for the median (next slide).
+                Both are strictly monotone, so each cell's measured value
+                inverts uniquely to an <em>effective <em>p</em></em>:
+                <div class="math-block">
+                  <em>p</em><sub>eff,&thinsp;mean</sub>(<em>x</em>) =
+                  C̄<sup>−1</sup>(&thinsp;C̄(<em>x</em>; <em>R</em>)&thinsp;)
+                </div>
+                <div class="math-block">
+                  <em>p</em><sub>eff,&thinsp;med</sub>(<em>x</em>) =
+                  C̃<sup>−1</sup>(&thinsp;C̃(<em>x</em>; <em>R</em>)&thinsp;)
+                </div>
+                The toolbar picks which one colors the map.
               </div>
             </div>
           </div>
@@ -975,10 +1121,146 @@
       </div>
     </section>
 
-    <!-- ── Slide 4: Ready ── -->
+    <!-- ── Slide 4: mean & median C(p) curves ── -->
     <section class="intro-slide" data-slide="3">
       <div class="intro-head">
-        <div class="intro-eyebrow">04 · Off you go</div>
+        <div class="intro-eyebrow">04</div>
+        <h1 class="intro-h1">
+          From mean or median <span class="em-cold">circuity to effective <em>p</em>.</span>
+        </h1>
+      </div>
+      <div class="slide-body">
+        <div class="curves-pair">
+
+          <!-- ─── Mean panel ─── -->
+          <div class="curve-panel">
+            <div class="curve-panel-title">mean — C̄(<em>p</em>)</div>
+            <div class="formula-banner">
+              C̄(<em>p</em>) = (2/π) ∫<sub>0</sub><sup>π/2</sup>
+              (cos<sup><em>p</em></sup>θ + sin<sup><em>p</em></sup>θ)<sup>1/<em>p</em></sup> dθ
+              <span class="where">Simpson's rule, 4097 nodes.</span>
+            </div>
+            <div class="inversion-plot">
+              <svg viewBox="0 0 360 280" xmlns="http://www.w3.org/2000/svg" role="img"
+                   aria-label="Mean circuity C_Lp(p) plotted for p in [0.5, 2], passing through taxicab (1, 1.273) and Euclidean (2, 1)">
+                <rect x="55" y="20" width="265" height="220" fill="#f6efde"/>
+                <!-- gridlines: y(C) = 240 − (C − 0.95)·220/1.55 -->
+                <g stroke="#ebe2c9" stroke-width="0.8" fill="none">
+                  <line x1="55" y1="91"  x2="320" y2="91"/>     <!-- C = 2.0 -->
+                  <line x1="55" y1="162" x2="320" y2="162"/>    <!-- C = 1.5 -->
+                  <line x1="55" y1="194" x2="320" y2="194"/>    <!-- C = 1.273 -->
+                  <line x1="55" y1="233" x2="320" y2="233"/>    <!-- C = 1.0 -->
+                  <line x1="143" y1="20" x2="143" y2="240"/>    <!-- p = 1 -->
+                  <line x1="232" y1="20" x2="232" y2="240"/>    <!-- p = 1.5 -->
+                </g>
+                <!-- axes -->
+                <line x1="55" y1="240" x2="320" y2="240" stroke="#0f0f0f" stroke-width="1.2"/>
+                <line x1="55" y1="20"  x2="55"  y2="240" stroke="#0f0f0f" stroke-width="1.2"/>
+                <!-- curve -->
+                <path d="M 55.00,41.01 L 57.52,52.82 L 60.05,63.57 L 62.57,73.38 L 65.10,82.37 L 67.62,90.63 L 70.14,98.24 L 72.67,105.27 L 75.19,111.78 L 77.71,117.82 L 80.24,123.44 L 82.76,128.68 L 85.29,133.57 L 87.81,138.15 L 90.33,142.44 L 92.86,146.47 L 95.38,150.25 L 97.90,153.82 L 100.43,157.18 L 102.95,160.35 L 105.48,163.35 L 108.00,166.19 L 110.52,168.88 L 113.05,171.44 L 115.57,173.86 L 118.10,176.17 L 120.62,178.36 L 123.14,180.45 L 125.67,182.44 L 128.19,184.34 L 130.71,186.16 L 133.24,187.89 L 135.76,189.55 L 138.29,191.14 L 140.81,192.66 L 143.33,194.12 L 146.87,196.06 L 150.40,197.90 L 153.93,199.64 L 157.47,201.28 L 161.00,202.84 L 164.53,204.31 L 168.07,205.72 L 171.60,207.05 L 175.13,208.32 L 178.67,209.53 L 182.20,210.69 L 185.73,211.79 L 189.27,212.84 L 192.80,213.84 L 196.33,214.80 L 199.87,215.72 L 203.40,216.60 L 206.93,217.44 L 210.47,218.25 L 214.00,219.03 L 217.53,219.77 L 221.07,220.49 L 224.60,221.17 L 228.13,221.84 L 231.67,222.47 L 235.20,223.08 L 238.73,223.67 L 242.27,224.24 L 245.80,224.79 L 249.33,225.32 L 252.87,225.83 L 256.40,226.32 L 259.93,226.80 L 263.47,227.25 L 267.00,227.70 L 270.53,228.13 L 274.07,228.54 L 277.60,228.95 L 281.13,229.33 L 284.67,229.71 L 288.20,230.08 L 291.73,230.43 L 295.27,230.77 L 298.80,231.10 L 302.33,231.43 L 305.87,231.74 L 309.40,232.04 L 312.93,232.34 L 316.47,232.63 L 320.00,232.90"
+                      stroke="#0f0f0f" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- markers: p=1 (taxicab, on curve), p=2 (Euclidean, on curve) -->
+                <circle cx="143.33" cy="194.12" r="4.5" fill="#ff5d3a" stroke="#0f0f0f" stroke-width="1"/>
+                <circle cx="320"    cy="232.90" r="4.5" fill="#3052f5" stroke="#0f0f0f" stroke-width="1"/>
+                <g font-family="Newsreader" font-style="italic" font-size="11.5" fill="#0f0f0f">
+                  <text x="151" y="183" fill="#ff5d3a">taxicab</text>
+                  <text x="151" y="173" font-family="JetBrains Mono" font-style="normal" font-size="9.5" fill="#5a5446">4/π ≈ 1.273</text>
+                  <text x="316" y="223" text-anchor="end" fill="#3052f5">Euclidean</text>
+                </g>
+                <!-- X ticks -->
+                <g font-family="JetBrains Mono" font-size="10" fill="#5a5446" text-anchor="middle">
+                  <text x="55"  y="256">0.5</text>
+                  <text x="143" y="256">1</text>
+                  <text x="232" y="256">1.5</text>
+                  <text x="320" y="256">2</text>
+                </g>
+                <text x="187" y="274" font-family="Newsreader" font-style="italic" font-size="13"
+                      fill="#0f0f0f" text-anchor="middle">p</text>
+                <!-- Y ticks -->
+                <g font-family="JetBrains Mono" font-size="10" fill="#5a5446" text-anchor="end">
+                  <text x="50" y="24">2.5</text>
+                  <text x="50" y="95">2.0</text>
+                  <text x="50" y="166">1.5</text>
+                  <text x="50" y="237">1.0</text>
+                </g>
+              </svg>
+            </div>
+          </div>
+
+          <!-- ─── Median panel ─── -->
+          <div class="curve-panel">
+            <div class="curve-panel-title">median — C̃(<em>p</em>)</div>
+            <div class="formula-banner">
+              C̃(<em>p</em>) = (cos<sup><em>p</em></sup>(π/8) +
+              sin<sup><em>p</em></sup>(π/8))<sup>1/<em>p</em></sup>
+              <span class="where">Closed-form: octant midpoint, no integral.</span>
+            </div>
+            <div class="inversion-plot">
+              <svg viewBox="0 0 360 280" xmlns="http://www.w3.org/2000/svg" role="img"
+                   aria-label="Median circuity Med(p) for p in [0.5, 2], passing through taxicab (1, 1.307) and Euclidean (2, 1)">
+                <rect x="55" y="20" width="265" height="220" fill="#f6efde"/>
+                <!-- gridlines: same y(C) mapping as the mean panel -->
+                <g stroke="#ebe2c9" stroke-width="0.8" fill="none">
+                  <line x1="55" y1="91"  x2="320" y2="91"/>     <!-- C = 2.0 -->
+                  <line x1="55" y1="162" x2="320" y2="162"/>    <!-- C = 1.5 -->
+                  <line x1="55" y1="189" x2="320" y2="189"/>    <!-- C = 1.307 -->
+                  <line x1="55" y1="233" x2="320" y2="233"/>    <!-- C = 1.0 -->
+                  <line x1="143" y1="20" x2="143" y2="240"/>    <!-- p = 1 -->
+                  <line x1="232" y1="20" x2="232" y2="240"/>    <!-- p = 1.5 -->
+                </g>
+                <!-- axes -->
+                <line x1="55" y1="240" x2="320" y2="240" stroke="#0f0f0f" stroke-width="1.2"/>
+                <line x1="55" y1="20"  x2="55"  y2="240" stroke="#0f0f0f" stroke-width="1.2"/>
+                <!-- curve -->
+                <path d="M 55.00,20.60 L 57.52,33.52 L 60.05,45.28 L 62.57,56.03 L 65.10,65.89 L 67.62,74.94 L 70.14,83.30 L 72.67,91.02 L 75.19,98.17 L 77.71,104.81 L 80.24,111.00 L 82.76,116.77 L 85.29,122.16 L 87.81,127.21 L 90.33,131.94 L 92.86,136.39 L 95.38,140.57 L 97.90,144.52 L 100.43,148.24 L 102.95,151.76 L 105.48,155.08 L 108.00,158.23 L 110.52,161.22 L 113.05,164.06 L 115.57,166.76 L 118.10,169.33 L 120.62,171.77 L 123.14,174.10 L 125.67,176.32 L 128.19,178.45 L 130.71,180.47 L 133.24,182.41 L 135.76,184.27 L 138.29,186.05 L 140.81,187.76 L 143.33,189.39 L 146.87,191.57 L 150.40,193.63 L 153.93,195.58 L 157.47,197.43 L 161.00,199.18 L 164.53,200.85 L 168.07,202.43 L 171.60,203.93 L 175.13,205.37 L 178.67,206.73 L 182.20,208.03 L 185.73,209.28 L 189.27,210.46 L 192.80,211.60 L 196.33,212.68 L 199.87,213.72 L 203.40,214.71 L 206.93,215.66 L 210.47,216.57 L 214.00,217.45 L 217.53,218.29 L 221.07,219.10 L 224.60,219.87 L 228.13,220.62 L 231.67,221.33 L 235.20,222.02 L 238.73,222.68 L 242.27,223.32 L 245.80,223.94 L 249.33,224.53 L 252.87,225.10 L 256.40,225.65 L 259.93,226.18 L 263.47,226.69 L 267.00,227.19 L 270.53,227.66 L 274.07,228.13 L 277.60,228.57 L 281.13,229.00 L 284.67,229.42 L 288.20,229.82 L 291.73,230.21 L 295.27,230.58 L 298.80,230.95 L 302.33,231.30 L 305.87,231.64 L 309.40,231.97 L 312.93,232.29 L 316.47,232.60 L 320.00,232.90"
+                      stroke="#0f0f0f" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- markers: p=1 (taxicab), p=2 (Euclidean), both on curve -->
+                <circle cx="143.33" cy="189.39" r="4.5" fill="#ff5d3a" stroke="#0f0f0f" stroke-width="1"/>
+                <circle cx="320"    cy="232.90" r="4.5" fill="#3052f5" stroke="#0f0f0f" stroke-width="1"/>
+                <g font-family="Newsreader" font-style="italic" font-size="11.5" fill="#0f0f0f">
+                  <text x="151" y="178" fill="#ff5d3a">taxicab</text>
+                  <text x="151" y="168" font-family="JetBrains Mono" font-style="normal" font-size="9.5" fill="#5a5446">≈ 1.307</text>
+                  <text x="316" y="223" text-anchor="end" fill="#3052f5">Euclidean</text>
+                </g>
+                <!-- X ticks -->
+                <g font-family="JetBrains Mono" font-size="10" fill="#5a5446" text-anchor="middle">
+                  <text x="55"  y="256">0.5</text>
+                  <text x="143" y="256">1</text>
+                  <text x="232" y="256">1.5</text>
+                  <text x="320" y="256">2</text>
+                </g>
+                <text x="187" y="274" font-family="Newsreader" font-style="italic" font-size="13"
+                      fill="#0f0f0f" text-anchor="middle">p</text>
+                <!-- Y ticks -->
+                <g font-family="JetBrains Mono" font-size="10" fill="#5a5446" text-anchor="end">
+                  <text x="50" y="24">2.5</text>
+                  <text x="50" y="95">2.0</text>
+                  <text x="50" y="166">1.5</text>
+                  <text x="50" y="237">1.0</text>
+                </g>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="slide-takeaway">
+          For each cell, effective <em>p</em> is the <em>p</em> at which the
+          closed-form curve hits the cell's measured circuity — one closed-form
+          lookup, no fitting.
+          <strong>Mean</strong> weights every ray equally, so a single
+          outlier drags <em>p</em><sub>eff</sub> down — best for spotting cells
+          where one barrier (freeway, river edge) skews the average.
+          <strong>Median</strong> is robust to outliers and tracks the typical-direction
+          routing experience — best for reading the network's dominant character,
+          not its isolated quirks.
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Slide 5: Ready ── -->
+    <section class="intro-slide" data-slide="4">
+      <div class="intro-head">
+        <div class="intro-eyebrow">05 · Off you go</div>
         <h1 class="intro-h1">
           Ready to <span class="em-cold">explore?</span>
         </h1>
@@ -1169,24 +1451,9 @@ function pColor(p) { return isFinite(p) ? paletteAt((p - VMIN) / (VMAX - VMIN)) 
 // For circuity we map circuity=2.5+→t=0 (red, sprawl),
 // circuity=4/π≈1.273→t=0.5 (paper, Manhattan grid), circuity=1.0→t=1 (blue, Euclidean),
 // piecewise so the grid mark sits at the colorbar midline.
-const GRID_C = 4 / Math.PI; // 1.27324...
-function normalize(value, field) {
-  if (field === 'circuity') {
-    if (!isFinite(value)) return 0;
-    if (value <= 1.0) return 1;
-    if (value >= 2.5) return 0;
-    if (value <= GRID_C) return 1 - (value - 1) / (GRID_C - 1) * 0.5;
-    return 0.5 - (value - GRID_C) / (2.5 - GRID_C) * 0.5;
-  }
-  // 'p' — linear in [0, 2]
-  return Math.max(0, Math.min(1, value / 2));
-}
-function colorFor(value, field) {
-  return isFinite(value) ? paletteAt(normalize(value, field)) : '#888';
-}
-
 // Paint legend strip — palette is the same for either field; only the
-// anchor numbers under the strip change.
+// anchor numbers under the strip change. The per-cell color math now lives
+// in scripts/rasterize.py — explorer_template only needs the gradient.
 (function paintLegend() {
   const stops = [];
   for (let i = 0; i <= 20; i++) stops.push(`${paletteAt(i/20)} ${i*5}%`);
@@ -1197,18 +1464,34 @@ function colorFor(value, field) {
 // Field-aware copy for the bottom legend.
 const FIELD_COPY = {
   p: {
-    name: 'effective <i>p</i>',
-    sub: 'L<sup>p</sup>-norm exponent best-fit to local routing distances. ' +
-         'Lower = network forces detour; higher = travel approaches Euclidean.',
+    name: 'effective <i>p</i> · mean',
+    sub: 'L<sup>p</sup>-norm exponent that reproduces the cell\'s <em>mean</em> ' +
+         'circuity. Sensitive to outlier rays — a single freeway-blocked direction ' +
+         'can drag <i>p</i> down even if the rest of the network is grid-like.',
     anchors: ['0.0', '1.0', '2.0'],
-    chip: 'effective <i>p</i>',
+    chip: 'effective <i>p</i> (mean)',
+  },
+  p_median: {
+    name: 'effective <i>p</i> · median',
+    sub: 'L<sup>p</sup>-norm exponent that reproduces the cell\'s <em>median</em> ' +
+         'circuity. Robust to outlier rays — high-circuity diffs vs the mean view ' +
+         'flag cells with one or two blocked directions amid an otherwise normal network.',
+    anchors: ['0.0', '1.0', '2.0'],
+    chip: 'effective <i>p</i> (median)',
   },
   circuity: {
-    name: 'circuity',
-    sub: 'Mean network distance ÷ straight-line distance, averaged over a ring of destinations. ' +
+    name: 'circuity · mean',
+    sub: 'Mean network distance ÷ straight-line distance, averaged over a ring of 48 destinations. ' +
          'A perfect grid averages 4/π ≈ 1.273; Euclidean is 1.0.',
     anchors: ['2.5+', '1.27', '1.00'],
-    chip: 'circuity',
+    chip: 'circuity (mean)',
+  },
+  circuity_median: {
+    name: 'circuity · median',
+    sub: 'Median network distance ÷ straight-line distance over the 48 ring rays. ' +
+         'Robust to one or two heavily detoured directions — grid anchor sits at cos(π/8)+sin(π/8) ≈ 1.31, Euclidean 1.0.',
+    anchors: ['2.5+', '1.27', '1.00'],
+    chip: 'circuity (median)',
   },
 };
 function applyFieldCopy(field) {
@@ -1221,27 +1504,6 @@ function applyFieldCopy(field) {
   document.getElementById('chipField').innerHTML = c.chip;
 }
 
-// ────────────── Hex geometry (preserved from research version) ──────────────
-const HEX_OVERLAP = 1.03;
-function hexLatLngs(lat, lng, spacingM) {
-  const r = spacingM / Math.sqrt(3) * HEX_OVERLAP;
-  const cosLat = Math.cos(lat * Math.PI / 180);
-  const dLat = r / 111320;
-  const dLng = r / (111320 * cosLat);
-  const out = [];
-  for (let k = 0; k < 6; k++) {
-    const a = Math.PI / 6 + k * Math.PI / 3;
-    out.push([lat + dLat * Math.sin(a), lng + dLng * Math.cos(a)]);
-  }
-  return out;
-}
-const MIN_PIXELS_PER_HEX = 4;
-function pixelsPerHex(lat, spacingM) {
-  const z = map.getZoom();
-  const metersPerPixel = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, z);
-  return spacingM / metersPerPixel;
-}
-
 // ────────────── Map ──────────────
 const map = L.map('map', { preferCanvas: true, zoomControl: false, attributionControl: true })
   .setView([39, -77], 4);
@@ -1250,163 +1512,167 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
 }).addTo(map);
 
-// ────────────── Custom canvas layer ──────────────
-//
-// Renders cells onto a single canvas, sized to the visible map viewport
-// (+ small pad).  Two render paths:
-//   * High zoom (≥ 5 px per hex spacing): hex-path fills with AA. Each hex
-//     covers many pixels so AA edges are negligible relative to interior;
-//     a 5 % HEX_OVERLAP closes any sub-pixel seam.
-//   * Low zoom  (< 5 px per hex spacing): pixel-aligned fillRect stamps
-//     with AA off. Each cell becomes a 1–4 px solid square. No alpha
-//     mixing means no moiré, no veins, no compounded translucent edges.
-// Hover via a single mousemove → bounded nearest-neighbour over the cell
-// list (≤ 60 k cells; brute force in tens of µs, throttled to rAF).
-//
-// CSS opacity on the canvas dims the whole composite uniformly; we keep
-// per-cell alpha at 1.0 so neighbours don't cumulate.
+// ────────────── Mobile / touch behavior ──────────────
+// Touch devices don't have a cursor, so the hover card is rebound to a
+// double-tap gesture instead. We reclaim Leaflet's default double-tap-zoom
+// for our own use and sample the data PNG at the tapped lat/lng.
+const IS_TOUCH = window.matchMedia('(hover: none)').matches;
+if (IS_TOUCH) {
+  map.doubleClickZoom.disable();
+  map.on('dblclick', (e) => {
+    if (!rasterField) return;
+    const v = rasterField.sampleAt(e.latlng.lat, e.latlng.lng);
+    if (v) updateHover({ ...v, lat: e.latlng.lat, lng: e.latlng.lng });
+  });
+}
 
-const HexField = L.Layer.extend({
-  options: { padding: 0.05, hexOverlap: 1.05 },
+// ────────────── Raster overlay field (image-based) ──────────────
+//
+// Each layer ships:
+//   * Four visual PNGs (palette-colored) — one per metric: p_mean,
+//     p_median, circuity_mean, circuity_median. The active one becomes the
+//     L.imageOverlay src.
+//   * One data PNG (RGBA-packed raw values: R = p_mean, G = c_mean,
+//     B = p_median, A = valid). Loaded into a hidden <canvas> so
+//     getImageData() can decode the values at the cursor's lat/lng for
+//     hover. c_median is derived client-side from p_median via the
+//     closed-form medianCircuityOfP() — no fourth channel needed.
+//
+// Pan/zoom is a single GPU image composite. Field swap is a setUrl().
+// Hover is one getImageData(1, 1) per rAF.
 
+const RasterField = L.Layer.extend({
   initialize(opts) {
     L.setOptions(this, opts || {});
-    this._cells = opts && opts.cells || [];
-    this._spacing = (opts && opts.spacing) || 75;
+    this._rasters = (opts && opts.rasters) || {};
+    this._dataRasterUri = (opts && opts.dataRaster) || null;
+    this._bounds = (opts && opts.bounds) || null;
+    this._ranges = (opts && opts.ranges) || { p: [0, 2], c: [1, 3] };
     this._field = (opts && opts.field) || 'p';
     this._opacity = (opts && opts.opacity != null) ? opts.opacity : 0.7;
     this._onHover = (opts && opts.onHover) || null;
-    this._lastBest = null;
+    this._visual = null;
+    this._dataCanvas = null;
+    this._dataCtx = null;
     this._mouseRaf = 0;
+    this._lastHadHover = false;
   },
 
   onAdd(map) {
     this._map = map;
-    const canvas = this._canvas = L.DomUtil.create('canvas', 'leaflet-layer leaflet-zoom-hide pscape-canvas');
-    canvas.style.position = 'absolute';
-    canvas.style.opacity = String(this._opacity);
-    canvas.style.pointerEvents = 'none';
-    map.getPanes().overlayPane.appendChild(canvas);
-    map.on('zoomend resize moveend viewreset', this._reset, this);
+    this._refreshVisual();
+    this._refreshDataCanvas();
     this._mouseHandler = (ev) => this._onMouseMoveDom(ev);
-    this._mouseLeaveHandler = () => { this._lastBest = null; };
+    this._mouseLeaveHandler = () => {
+      this._lastHadHover = false;
+      if (this._onHover) this._onHover(null);
+    };
     map.getContainer().addEventListener('mousemove', this._mouseHandler);
     map.getContainer().addEventListener('mouseleave', this._mouseLeaveHandler);
-    this._reset();
     return this;
   },
 
   onRemove(map) {
-    map.off('zoomend resize moveend viewreset', this._reset, this);
+    if (this._visual) { map.removeLayer(this._visual); this._visual = null; }
     map.getContainer().removeEventListener('mousemove', this._mouseHandler);
     map.getContainer().removeEventListener('mouseleave', this._mouseLeaveHandler);
-    L.DomUtil.remove(this._canvas);
-    this._canvas = null;
+    this._dataCanvas = null;
+    this._dataCtx = null;
   },
 
   setOpacity(o) {
     this._opacity = o;
-    if (this._canvas) this._canvas.style.opacity = String(o);
+    if (this._visual) this._visual.setOpacity(o);
   },
 
   setField(field) {
     if (field === this._field) return;
     this._field = field;
-    this._draw();
+    this._refreshVisual();
   },
 
-  setData(cells, spacing) {
-    this._cells = cells || [];
-    this._spacing = spacing || this._spacing;
-    this._reset();
+  setData(opts) {
+    if (opts.rasters)      this._rasters = opts.rasters;
+    if (opts.dataRaster)   this._dataRasterUri = opts.dataRaster;
+    if (opts.bounds)       this._bounds = opts.bounds;
+    if (opts.ranges)       this._ranges = opts.ranges;
+    this._refreshVisual();
+    this._refreshDataCanvas();
   },
 
   setHoverHandler(fn) { this._onHover = fn; },
 
-  _reset() {
-    if (!this._canvas || !this._map) return;
-    const map = this._map, canvas = this._canvas;
-    const size = map.getSize();
-    const pad = Math.round(Math.max(size.x, size.y) * this.options.padding);
-    const w = size.x + 2 * pad, h = size.y + 2 * pad;
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
-    canvas.style.width = w + 'px';
-    canvas.style.height = h + 'px';
-    const tl = map.containerPointToLayerPoint([-pad, -pad]);
-    L.DomUtil.setPosition(canvas, tl);
-    this._padding = pad;
-    this._draw();
+  sampleAt(lat, lng) {
+    return this._sampleData(lat, lng);
   },
 
-  _draw() {
-    if (!this._canvas || !this._map || !this._cells.length) return;
-    const map = this._map, canvas = this._canvas;
-    const ctx = canvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
-    const pad = this._padding || 0;
+  _fieldToRasterKey(field) {
+    switch (field) {
+      case 'p_median':         return 'p_median';
+      case 'circuity':         return 'circuity_mean';
+      case 'circuity_median':  return 'circuity_median';
+      case 'p':
+      default:                 return 'p_mean';
+    }
+  },
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.save();
-    ctx.scale(dpr, dpr);
-
-    const center = map.getCenter();
-    const z = map.getZoom();
-    const metersPerPixel = 156543.03392 * Math.cos(center.lat * Math.PI / 180) / Math.pow(2, z);
-    const ppx = this._spacing / metersPerPixel;
-
-    const bounds = map.getBounds().pad(this.options.padding);
-    const sw = bounds.getSouthWest(), ne = bounds.getNorthEast();
-    const swLat = sw.lat, neLat = ne.lat, swLng = sw.lng, neLng = ne.lng;
-    const field = this._field;
-    const cells = this._cells;
-
-    if (ppx >= 5) {
-      // High zoom: fill hex paths. Slight overlap for seam closure.
-      const r = (ppx / Math.sqrt(3)) * this.options.hexOverlap;
-      // precompute corner unit vectors
-      const uX = new Float32Array(6), uY = new Float32Array(6);
-      for (let k = 0; k < 6; k++) {
-        const a = Math.PI / 6 + k * Math.PI / 3;
-        uX[k] = Math.cos(a) * r;
-        uY[k] = Math.sin(a) * r;
-      }
-      for (let i = 0; i < cells.length; i++) {
-        const c = cells[i];
-        const lat = c[0], lng = c[1];
-        if (lat < swLat || lat > neLat || lng < swLng || lng > neLng) continue;
-        const value = field === 'circuity' ? c[3] : c[2];
-        const pt = map.latLngToContainerPoint([lat, lng]);
-        const x = pt.x + pad, y = pt.y + pad;
-        ctx.beginPath();
-        ctx.moveTo(x + uX[0], y + uY[0]);
-        for (let k = 1; k < 6; k++) ctx.lineTo(x + uX[k], y + uY[k]);
-        ctx.closePath();
-        ctx.fillStyle = colorFor(value, field);
-        ctx.fill();
+  _refreshVisual() {
+    if (!this._map || !this._bounds) return;
+    const uri = this._rasters[this._fieldToRasterKey(this._field)];
+    if (!uri) return;
+    if (!this._visual) {
+      this._visual = L.imageOverlay(uri, this._bounds, {
+        opacity: this._opacity,
+        interactive: false,
+      }).addTo(this._map);
+      const el = this._visual.getElement();
+      if (el) {
+        el.style.imageRendering = 'pixelated';
+        el.style.imageRendering = 'crisp-edges';
       }
     } else {
-      // Low zoom: pixel-aligned fillRect, no AA edges.
-      ctx.imageSmoothingEnabled = false;
-      const stamp = Math.max(1, Math.ceil(ppx * 1.05));
-      const half = Math.floor(stamp / 2);
-      for (let i = 0; i < cells.length; i++) {
-        const c = cells[i];
-        const lat = c[0], lng = c[1];
-        if (lat < swLat || lat > neLat || lng < swLng || lng > neLng) continue;
-        const value = field === 'circuity' ? c[3] : c[2];
-        const pt = map.latLngToContainerPoint([lat, lng]);
-        ctx.fillStyle = colorFor(value, field);
-        ctx.fillRect(Math.round(pt.x + pad - half), Math.round(pt.y + pad - half), stamp, stamp);
-      }
+      this._visual.setUrl(uri);
+      this._visual.setBounds(L.latLngBounds(this._bounds));
+      this._visual.setOpacity(this._opacity);
     }
+  },
 
-    ctx.restore();
+  _refreshDataCanvas() {
+    if (!this._dataRasterUri) { this._dataCanvas = null; this._dataCtx = null; return; }
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(img, 0, 0);
+      this._dataCanvas = canvas;
+      this._dataCtx = ctx;
+    };
+    img.src = this._dataRasterUri;
+  },
+
+  _sampleData(lat, lng) {
+    if (!this._dataCtx || !this._bounds) return null;
+    const sw = this._bounds[0], ne = this._bounds[1];
+    if (lat < sw[0] || lat > ne[0] || lng < sw[1] || lng > ne[1]) return null;
+    const W = this._dataCanvas.width, H = this._dataCanvas.height;
+    const fx = (lng - sw[1]) / (ne[1] - sw[1]);
+    const fy = (ne[0] - lat) / (ne[0] - sw[0]);   // PNG Y axis is top→down
+    const px = Math.min(W - 1, Math.max(0, Math.floor(fx * W)));
+    const py = Math.min(H - 1, Math.max(0, Math.floor(fy * H)));
+    const data = this._dataCtx.getImageData(px, py, 1, 1).data;
+    if (data[3] === 0) return null;
+    const pR = this._ranges.p, cR = this._ranges.c;
+    return {
+      pMean:   pR[0] + (data[0] / 255) * (pR[1] - pR[0]),
+      cMean:   cR[0] + (data[1] / 255) * (cR[1] - cR[0]),
+      pMedian: pR[0] + (data[2] / 255) * (pR[1] - pR[0]),
+    };
   },
 
   _onMouseMoveDom(ev) {
-    if (this._mouseRaf || !this._cells.length || !this._onHover) return;
+    if (this._mouseRaf || !this._onHover) return;
     this._mouseRaf = requestAnimationFrame(() => {
       this._mouseRaf = 0;
       this._processMouse(ev);
@@ -1421,28 +1687,19 @@ const HexField = L.Layer.extend({
     const y = ev.clientY - rect.top;
     if (x < 0 || y < 0 || x >= rect.width || y >= rect.height) return;
     const ll = map.containerPointToLatLng([x, y]);
-    const lat0 = ll.lat, lng0 = ll.lng;
-    const bounds = map.getBounds();
-    const swLat = bounds._southWest.lat, neLat = bounds._northEast.lat;
-    const swLng = bounds._southWest.lng, neLng = bounds._northEast.lng;
-    const cells = this._cells;
-    let best = null, bestD = Infinity;
-    for (let i = 0; i < cells.length; i++) {
-      const c = cells[i];
-      const cl = c[0], cn = c[1];
-      if (cl < swLat || cl > neLat || cn < swLng || cn > neLng) continue;
-      const dy = cl - lat0, dx = cn - lng0;
-      const d = dy * dy + dx * dx;
-      if (d < bestD) { bestD = d; best = c; }
-    }
-    if (best && best !== this._lastBest) {
-      this._lastBest = best;
-      this._onHover(best);
+    const values = this._sampleData(ll.lat, ll.lng);
+    if (values) {
+      this._lastHadHover = true;
+      this._onHover({ ...values, lat: ll.lat, lng: ll.lng });
+    } else if (this._lastHadHover) {
+      this._lastHadHover = false;
+      this._onHover(null);
     }
   },
+
 });
 
-let hexField = null;
+let rasterField = null;
 
 // ────────────── Controls ──────────────
 const cityPick    = document.getElementById('cityPick');
@@ -1499,83 +1756,102 @@ function reachLabel(mode, r) {
 }
 
 // ────────────── City ranking (precomputed across cities at each radius) ──────────────
-// We compute median p per (city,mode,radius) once per layer change so we can
-// say "Manhattan is #2 of 6 most grid-like at this scale."
-function cityMedians(mode, radius) {
+// Each layer ships a `stats` block per field — median, p10, p90, plus a
+// 101-entry CDF — precomputed at build time. cityMedians reads the per-layer
+// median directly, no cell-array iteration. Circuity views rank on the
+// matching p flavor (a circuity_median map ranks on p_median).
+function statsFieldKey(field) {
+  switch (field) {
+    case 'p':                return 'p_mean';
+    case 'p_median':         return 'p_median';
+    case 'circuity':         return 'p_mean';
+    case 'circuity_median':  return 'p_median';
+    default:                 return 'p_mean';
+  }
+}
+
+function cityMedians(mode, radius, field) {
+  const skey = statsFieldKey(field);
   const out = [];
   PAYLOAD.cities.forEach(c => {
     const k = c + '__' + mode + '__' + radius;
     const d = PAYLOAD.layers[k];
-    if (!d || !d.cells.length) return;
-    const ps = d.cells.map(r => r[2]).sort((a,b) => a-b);
-    out.push({ city: c, median: ps[Math.floor(ps.length/2)] });
+    const s = d && d.stats && d.stats[skey];
+    if (!s || !isFinite(s.median)) return;
+    out.push({ city: c, median: s.median });
   });
   out.sort((a,b) => b.median - a.median);  // most grid-like first
   return out;
 }
 
 // ────────────── Hover-sentence interpretation ──────────────
-// Translate raw p → human-readable sentence + percentile within current city.
-// All headlines quote the SAME metric — "X% longer than the crow's flight" =
-// (c - 1) * 100, where c is the per-cell mean circuity. This is monotone in c
-// and stays comparable across tiers (so adjacent cells can't read as
-// dramatically different just because they crossed a threshold).
-// Tiers are still bucketed by p; the grid baseline (4/π ≈ 1.27 → +27%) and
-// raw circuity go in the body as context.
-function interpret(p, c, allP, cityName) {
-  // percentile in current city (still by p — same ordering)
+// Returns:
+//   tier  — one short phrase describing the cell's character at the active p
+//   rank  — single-line percentile string within the current city
+// Body copy is composed separately from the mean/median delta in updateHover.
+
+function interpret(p, cdf, cityName) {
   let pct = 0;
-  if (allP.length) {
-    let lo = 0, hi = allP.length;
+  if (cdf && cdf.length) {
+    // cdf is sorted ascending: cdf[i] is the i-th percentile (i/100 quantile).
+    // Find the smallest i where cdf[i] >= p → percentile = i.
+    let lo = 0, hi = cdf.length;
     while (lo < hi) {
       const m = (lo + hi) >>> 1;
-      if (allP[m] < p) lo = m + 1; else hi = m;
+      if (cdf[m] < p) lo = m + 1; else hi = m;
     }
-    pct = Math.round(100 * lo / allP.length);
+    pct = Math.round(100 * lo / (cdf.length - 1));
   }
-  const GRID = 4 / Math.PI;                  // 1.27324
-  const GRID_PCT = Math.round((GRID - 1) * 100);   // 27
-  const cv = isFinite(c) ? c : NaN;
-  const overStraight = isFinite(cv) ? Math.max(0, Math.round((cv - 1) * 100)) : 0;
 
-  let headline, body;
-  if (p <= 0.001) {
-    headline = `<em class="em-hot">No reliable origin here</em> — the network barely reaches this cell.`;
-    body = `Either too rural / disconnected, or the routing graph has no road within one grid spacing of the cell centre. Treated as p = 0.`;
+  let tier, body;
+  if (!isFinite(p) || p <= 0.001) {
+    tier = 'No routable origin';
+    body = 'The routing graph has no road within one cell spacing — water, park, or an interior parcel.';
   } else if (p < 0.55) {
-    headline = `Walking here loops back on itself — trips run <em class="em-hot">${overStraight}% longer</em> than the crow's flight on average.`;
-    body = `Cul-de-sacs and superblocks dominate. Mean circuity ${cv.toFixed(2)}× — much worse than a Manhattan grid (which would give ${GRID_PCT}%).`;
+    tier = 'Highly meandering';
+    body = 'p ≪ 1: every off-axis direction detours past even a Manhattan grid. Superblocks, barriers, or dense cul-de-sac fabric dominate.';
   } else if (p < 0.85) {
-    headline = `Streets here meander — trips run <em class="em-hot">${overStraight}% longer</em> than the crow's flight.`;
-    body = `Mean circuity ${cv.toFixed(2)}× straight-line, vs ${GRID.toFixed(2)}× (+${GRID_PCT}%) for a perfect grid. Detours, dead-ends, and offset blocks add up.`;
+    tier = 'Curvilinear / suburban';
+    body = 'p < 1: streets curve and dead-end rather than run in a grid. Most off-axis trips run longer than the +27% a pure grid would impose.';
   } else if (p < 1.05) {
-    headline = `Basically a grid — trips run <em>${overStraight}% longer</em> than the crow's flight.`;
-    body = `Mean circuity ${cv.toFixed(2)}×, within a hair of the Manhattan-grid limit (${GRID.toFixed(2)}× / +${GRID_PCT}%).`;
+    tier = 'Near a taxicab grid (L¹)';
+    body = 'p ≈ 1: trips average about |Δx| + |Δy| — the canonical Manhattan-grid limit. No diagonals to speak of.';
   } else if (p < 1.25) {
-    headline = `<em>Better than a grid</em> — trips run only <em class="em-cold">${overStraight}% longer</em> than the crow's flight.`;
-    body = `Mean circuity ${cv.toFixed(2)}× — beats the +${GRID_PCT}% a perfect grid would impose. Diagonals, chamfered corners, or radial streets cut across the rectangle.`;
+    tier = 'Beats a taxicab grid (sub-L¹)';
+    body = 'p > 1: the network has shortcuts. Diagonals, chamfered corners, or angled streets cut trips below the pure-grid baseline.';
   } else {
-    headline = `<em>Exceptional</em> — trips run only <em class="em-cold">${overStraight}% longer</em> than the crow's flight.`;
-    body = `Mean circuity ${cv.toFixed(2)}× vs the +${GRID_PCT}% grid baseline. One of the most direct walking networks anywhere — Eixample-class or better.`;
+    tier = 'Nearing Euclidean (L²)';
+    body = 'p approaches 2: trips approach the straight-line crow\'s-flight distance. Diagonal boulevards or radial streets are doing the work.';
   }
-  // percentile copy
-  let pctText, pctLabel;
-  if (pct >= 95) { pctText = `top ${100 - pct}%`; pctLabel = `most grid-like in ${cityName}`; }
-  else if (pct >= 75) { pctText = `top ${100 - pct}%`; pctLabel = `most grid-like in ${cityName}`; }
-  else if (pct <= 5)  { pctText = `bottom ${pct}%`; pctLabel = `most sprawly in ${cityName}`; }
-  else if (pct <= 25) { pctText = `bottom ${pct}%`; pctLabel = `most sprawly in ${cityName}`; }
-  else { pctText = `${pct}th percentile`; pctLabel = `for ${cityName}`; }
-  return { headline, body, pctText, pctLabel };
+
+  let rank;
+  if (!isFinite(p) || p <= 0.001)  rank = `(not ranked)`;
+  else if (pct >= 95)              rank = `top ${100 - pct}% in ${cityName} · most grid-like`;
+  else if (pct >= 75)              rank = `top ${100 - pct}% in ${cityName}`;
+  else if (pct <= 5)               rank = `bottom ${pct}% in ${cityName} · most meandering`;
+  else if (pct <= 25)              rank = `bottom ${pct}% in ${cityName}`;
+  else                             rank = `${pct}th percentile in ${cityName}`;
+
+  return { tier, body, rank };
+}
+
+// Closed-form median directional circuity for an L^p norm, evaluated client-side
+// so we don't have to ship a per-cell median_circuity field in the payload.
+//   Med_Lp(p) = (cos^p(π/8) + sin^p(π/8))^(1/p)
+const HOVER_COS_PI_8 = Math.cos(Math.PI / 8);
+const HOVER_SIN_PI_8 = Math.sin(Math.PI / 8);
+function medianCircuityOfP(p) {
+  if (!isFinite(p) || p <= 0) return NaN;
+  return Math.pow(Math.pow(HOVER_COS_PI_8, p) + Math.pow(HOVER_SIN_PI_8, p), 1 / p);
 }
 
 // ────────────── Layer rendering ──────────────
-let layerGroup = null;
-let polyByIndex = [];      // for hover lookup
-let currentP = [];         // sorted p values, current layer
+// `currentLayer` is the most recently rendered (city, mode, r) layer payload.
+// `currentCdf` is the CDF used for hover percentiles (depends on field).
+let currentLayer = null;
+let currentCdf = null;
 
 function renderLayer(opts = {}) {
-  if (layerGroup) { map.removeLayer(layerGroup); layerGroup = null; }
-  polyByIndex = [];
   const city = cityPick.value, mode = modePick.value;
   const r = parseInt(radiusPick.value, 10);
 
@@ -1596,49 +1872,52 @@ function renderLayer(opts = {}) {
   const loading = document.getElementById('loading');
   loading.style.display = 'none';
 
-  if (!data || !data.cells.length) {
+  if (!data || !data.rasters || !data.bounds) {
     document.getElementById('heroSub').textContent =
       mode === 'foot' ? 'No walking data for this radius yet.' : 'No driving data for this radius yet.';
     document.getElementById('heroRank').innerHTML = '';
-    currentP = [];
+    currentLayer = null;
+    currentCdf = null;
     return;
   }
 
-  const cells = data.cells, spacing = data.spacing_m;
-  const field = fieldPick.value;  // 'p' | 'circuity'
-  const ps = [];
-  for (let i = 0; i < cells.length; i++) ps.push(cells[i][2]);
+  const field = fieldPick.value;  // 'p' | 'p_median' | 'circuity' | 'circuity_median'
+  currentLayer = data;
+  const sKey = statsFieldKey(field);
+  currentCdf = data.stats && data.stats[sKey] ? data.stats[sKey].cdf : null;
 
-  if (!hexField) {
-    hexField = new HexField({
-      cells, spacing, field,
-      opacity: (parseInt(opacityPick.value, 10) || 0) / 100,
-      onHover: (cell) => {
-        const lat = cell[0], lng = cell[1], p = cell[2];
-        const c = (cell.length > 3) ? cell[3] : NaN;
-        updateHover(p, c, lat, lng);
-      },
+  if (!rasterField) {
+    rasterField = new RasterField({
+      rasters:    data.rasters,
+      dataRaster: data.data_raster,
+      bounds:     data.bounds,
+      ranges:     data.ranges,
+      field,
+      opacity:    (parseInt(opacityPick.value, 10) || 0) / 100,
+      onHover:    (v) => updateHover(v),
     });
-    hexField.addTo(map);
+    rasterField.addTo(map);
   } else {
-    hexField.setData(cells, spacing);
-    hexField.setField(field);
+    rasterField.setData({
+      rasters:    data.rasters,
+      dataRaster: data.data_raster,
+      bounds:     data.bounds,
+      ranges:     data.ranges,
+    });
+    rasterField.setField(field);
   }
   applyOpacity();
 
-  ps.sort((a,b) => a-b);
-  currentP = ps;
-  const median = ps[Math.floor(ps.length/2)];
-  const p10 = ps[Math.floor(ps.length*0.1)];
-  const p90 = ps[Math.floor(ps.length*0.9)];
-
-  // City description
+  // Hero stats from the precomputed sidecar — no cell-array iteration.
+  const stats = data.stats[sKey];
+  const median = stats.median, p10 = stats.p10, p90 = stats.p90;
   const desc = describeCity(median);
   document.getElementById('heroSub').innerHTML =
     `${desc} <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mute)">· median p ${median.toFixed(2)} · p10 ${p10.toFixed(2)} · p90 ${p90.toFixed(2)}</span>`;
 
-  // Rank within current cohort
-  const ranks = cityMedians(mode, r);
+  // Rank within current cohort, using the same p flavor (mean / median) the
+  // user is looking at on the map.
+  const ranks = cityMedians(mode, r, field);
   const myIdx = ranks.findIndex(x => x.city === city);
   if (myIdx >= 0) {
     document.getElementById('heroRank').innerHTML =
@@ -1647,10 +1926,6 @@ function renderLayer(opts = {}) {
     document.getElementById('heroRank').innerHTML = '';
   }
 
-  // Update zoom warning
-  refreshZoomWarn(cells[0][0], spacing);
-
-  // Update permalink
   syncPermalink();
 }
 
@@ -1662,43 +1937,76 @@ function describeCity(median) {
   return `Exceptional geometry — close to straight-line travel.`;
 }
 
-function refreshZoomWarn(lat, spacing) {
-  const ppx = pixelsPerHex(lat, spacing);
-  document.getElementById('zoomWarn').classList.toggle('show', ppx < MIN_PIXELS_PER_HEX);
-}
-
 // ────────────── Hover card ──────────────
 const hoverCard      = document.getElementById('hoverCard');
 const hoverHeadline  = document.getElementById('hoverHeadline');
 const hoverBody      = document.getElementById('hoverBody');
-const hoverP         = document.getElementById('hoverP');
-const hoverPct       = document.getElementById('hoverPct');
-const hoverPctL      = document.getElementById('hoverPctL');
 const hoverEyebrow   = document.getElementById('hoverEyebrow');
 const hoverStats     = document.getElementById('hoverStats');
+const hoverPMean     = document.getElementById('hoverPMean');
+const hoverPMedian   = document.getElementById('hoverPMedian');
+const hoverCMean     = document.getElementById('hoverCMean');
+const hoverCMedian   = document.getElementById('hoverCMedian');
+const hoverRank      = document.getElementById('hoverRank');
 
-function updateHover(p, c, lat, lng) {
-  const cityName = PAYLOAD.pretty[cityPick.value] || cityPick.value;
-  const r = interpret(p, c, currentP, cityName);
-  hoverCard.classList.remove('idle');
-  hoverEyebrow.textContent = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-  hoverHeadline.innerHTML  = r.headline;
-  hoverBody.textContent    = r.body;
-  // Display the field the user is currently looking at.
-  if (fieldPick.value === 'circuity' && isFinite(c)) {
-    hoverP.textContent = c.toFixed(2);
-  } else {
-    hoverP.textContent = p.toFixed(2);
+function updateHover(v) {
+  if (!v) {
+    hoverCard.classList.add('idle');
+    hoverStats.style.display = 'none';
+    hoverEyebrow.textContent = 'Hover a cell';
+    return;
   }
-  hoverPct.textContent     = r.pctText;
-  hoverPctL.textContent    = r.pctLabel;
-  hoverStats.style.display = 'grid';
+  const cityName = PAYLOAD.pretty[cityPick.value] || cityPick.value;
+  const { pMean, cMean, pMedian, lat, lng } = v;
+  const cMedian = medianCircuityOfP(pMedian);
+
+  const activeField = fieldPick.value;
+  const meanActive  = activeField === 'p' || activeField === 'circuity';
+  const activeP     = meanActive ? pMean : pMedian;
+  const { tier, body, rank } = interpret(activeP, currentCdf, cityName);
+
+  hoverCard.classList.remove('idle');
+  hoverEyebrow.textContent = `${lat.toFixed(4)}, ${lng.toFixed(4)} · ${cityName}`;
+  hoverHeadline.textContent = tier;
+
+  // Body is per-tier intuition for what the cell's p value means. Only
+  // append a mean-vs-median observation when the gap is large enough to
+  // actually carry signal — small gaps are floor noise and would otherwise
+  // wash out the intuition line.
+  let bodyText = body;
+  const dp = pMedian - pMean;
+  if (isFinite(pMean) && isFinite(pMedian) && activeP > 0.001 && Math.abs(dp) >= 0.15) {
+    if (dp > 0) {
+      bodyText += ` Median runs ${dp.toFixed(2)} above mean — one or more directions detour heavily, dragging the mean down.`;
+    } else {
+      bodyText += ` Mean runs ${(-dp).toFixed(2)} above median — bimodal directional response.`;
+    }
+  }
+  hoverBody.textContent = bodyText;
+
+  // Stats grid
+  hoverPMean.textContent   = isFinite(pMean)    ? pMean.toFixed(2)    : '—';
+  hoverPMedian.textContent = isFinite(pMedian)  ? pMedian.toFixed(2)  : '—';
+  hoverCMean.textContent   = isFinite(cMean)    ? cMean.toFixed(2)    : '—';
+  hoverCMedian.textContent = isFinite(cMedian)  ? cMedian.toFixed(2)  : '—';
+
+  // Underline the column matching the currently-selected dropdown so the
+  // map and the numbers stay visually linked. Mean-side fields ('p',
+  // 'circuity') highlight the left column; median-side fields highlight
+  // the right column.
+  hoverPMean.classList.toggle('active',   meanActive);
+  hoverCMean.classList.toggle('active',   meanActive);
+  hoverPMedian.classList.toggle('active', !meanActive);
+  hoverCMedian.classList.toggle('active', !meanActive);
+
+  hoverRank.textContent    = rank;
+  hoverStats.style.display = 'block';
 }
 
 // ────────────── Opacity (slider-controlled) ──────────────
 function applyOpacity() {
   const o = (parseInt(opacityPick.value, 10) || 0) / 100;
-  if (hexField) hexField.setOpacity(o);
+  if (rasterField) rasterField.setOpacity(o);
   if (chipOpacity) chipOpacity.textContent = `${opacityPick.value}%`;
 }
 
@@ -1719,12 +2027,8 @@ opacityPick.addEventListener('input', applyOpacity);
 // First paint of the field-aware copy (legend + chip)
 applyFieldCopy(fieldPick.value);
 
-map.on('zoomend', () => {
-  const city = cityPick.value, mode = modePick.value, r = parseInt(radiusPick.value, 10);
-  const data = PAYLOAD.layers[city + '__' + mode + '__' + r];
-  if (!data || !data.cells.length) return;
-  refreshZoomWarn(data.cells[0][0], data.spacing_m);
-});
+// (zoom-warn was always display:none — the raster overlay scales correctly
+// at any zoom, so the warning has no remaining purpose.)
 map.on('moveend', syncPermalink);
 
 // ────────────── Permalink + share ──────────────
@@ -1760,7 +2064,7 @@ document.getElementById('shareBtn').addEventListener('click', async () => {
   } catch (_) {}
 });
 
-// ────────────── Intro overlay (4-slide carousel) ──────────────
+// ────────────── Intro overlay (5-slide carousel) ──────────────
 const introBack  = document.getElementById('introBack');
 const introSlides = Array.from(document.querySelectorAll('.intro-slide'));
 const introDots   = Array.from(document.querySelectorAll('#introDots .dot'));
