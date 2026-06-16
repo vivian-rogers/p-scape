@@ -1525,6 +1525,7 @@ source = { editable = "." }
 dependencies = [
     { name = "branca" },
     { name = "folium" },
+    { name = "httpx" },
     { name = "matplotlib" },
     { name = "numpy" },
     { name = "pyproj" },
@@ -1546,6 +1547,7 @@ dev = [
 requires-dist = [
     { name = "branca" },
     { name = "folium" },
+    { name = "httpx" },
     { name = "ipykernel", marker = "extra == 'dev'" },
     { name = "jupyterlab", marker = "extra == 'dev'" },
     { name = "matplotlib" },

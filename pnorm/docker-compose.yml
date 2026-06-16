@@ -7,7 +7,12 @@ services:
   osrm-car:
     image: osrm/osrm-backend:latest
     container_name: pnorm-osrm-car
-    command: osrm-routed --algorithm mld --max-table-size 10000 /data/${CITY:-austin}.osrm
+    # -t N: explicit thread count for the HTTP listener. The Docker default
+    # picks up the VM's reported core count, which on macOS often defaults
+    # to 2-4 regardless of host hardware. With K=48 jittered Monte Carlo
+    # sampling we want real parallel /table throughput, so set it explicitly
+    # to 8 (leave 2 cores for the asyncio client on a 10-core host).
+    command: osrm-routed --algorithm mld --max-table-size 10000 --threads 8 /data/${CITY:-austin}.osrm
     ports:
       - "5001:5000"
     volumes:
@@ -17,7 +22,7 @@ services:
   osrm-foot:
     image: osrm/osrm-backend:latest
     container_name: pnorm-osrm-foot
-    command: osrm-routed --algorithm mld --max-table-size 10000 /data/${CITY:-austin}.osrm
+    command: osrm-routed --algorithm mld --max-table-size 10000 --threads 8 /data/${CITY:-austin}.osrm
     ports:
       - "5002:5000"
     volumes:
