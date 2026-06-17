@@ -288,15 +288,118 @@ CITIES: dict[str, City] = {
     "vienna": City(
         key="vienna",
         name="Vienna, Austria",
-        # Innere Stadt + Ringstraße + inner districts (Wieden, Mariahilf,
-        # Josefstadt, Alsergrund, Leopoldstadt, Landstraße). Medieval star
-        # core wrapped by the 1860s Ringstraße and the 19c gridded
-        # residential ring beyond it. ~11 × 7.8 km.
-        bbox=(16.30, 48.17, 16.45, 48.24),
+        # Innere Stadt + Ringstraße + Gürtel + 19c outer districts.
+        # Extended south to include Favoriten/Meidling (10/12) and west to
+        # include Ottakring/Hernals (16/17) — these outer districts are
+        # where the famous 1890s-era orthogonal grid lives, expanding past
+        # the medieval star + Ringstraße of the previous tighter bbox.
+        # ~14.8 × 13.3 km.
+        bbox=(16.26, 48.13, 16.46, 48.25),
         utm_epsg=32633,  # UTM 33N
         geofabrik_region="europe/austria",
         center=(48.208, 16.373),  # Stephansplatz
         default_zoom=12,
+    ),
+    "amsterdam": City(
+        key="amsterdam",
+        name="Amsterdam",
+        # Centrum + canal ring (Grachtengordel) + Jordaan + De Pijp +
+        # Oud-West + Oost. The horseshoe canal pattern + radial streets +
+        # post-19c rectangular districts make this the textbook
+        # "walkability-leader" European city. ~9.5 × 8.9 km.
+        bbox=(4.83, 52.34, 4.97, 52.42),
+        utm_epsg=32631,  # UTM 31N
+        geofabrik_region="europe/netherlands",
+        center=(52.373, 4.892),  # Dam Square
+        default_zoom=13,
+    ),
+    "copenhagen": City(
+        key="copenhagen",
+        name="Copenhagen",
+        # Indre By (medieval star + Strøget) + Vesterbro + Nørrebro grid +
+        # Østerbro + Frederiksberg. The canonical Scandinavian walkable
+        # city. ~7.5 × 8.9 km.
+        bbox=(12.50, 55.64, 12.62, 55.72),
+        utm_epsg=32633,  # UTM 33N (12°E is the boundary; Copenhagen at 12.5° fits)
+        geofabrik_region="europe/denmark",
+        center=(55.677, 12.568),  # Rådhuspladsen
+        default_zoom=13,
+    ),
+    "kyoto": City(
+        key="kyoto",
+        name="Kyoto, Japan",
+        # The original deliberately-planned grid city, ~800 AD (Heian-kyō).
+        # Modern Kyoto preserves that grid through Nakagyo + Shimogyo +
+        # Higashiyama; the network is one of the oldest gridded urban
+        # fabrics still in continuous use. ~11.8 × 8.9 km.
+        bbox=(135.69, 34.97, 135.82, 35.05),
+        utm_epsg=32653,  # UTM 53N
+        geofabrik_region="asia/japan/kansai",
+        center=(35.012, 135.768),  # Kyoto Station
+        default_zoom=13,
+    ),
+    "phoenix": City(
+        key="phoenix",
+        name="Phoenix, AZ",
+        # Downtown Phoenix + Encanto + Camelback corridor + Biltmore.
+        # Canonical Sun Belt sprawl on a 1-mile section-line grid with
+        # large blocks and arterial-only connectivity. Expected bottom
+        # of the catalog at neighborhood walking scales. ~14 × 13.3 km.
+        bbox=(-112.10, 33.40, -111.95, 33.52),
+        utm_epsg=32612,  # UTM 12N
+        geofabrik_region="north-america/us/arizona",
+        center=(33.448, -112.074),  # downtown
+        default_zoom=12,
+    ),
+    "edinburgh": City(
+        key="edinburgh",
+        name="Edinburgh",
+        # Old Town (medieval Royal Mile) + New Town (1767 Georgian grid)
+        # + Leith waterfront. Two centuries of urban planning in one
+        # bbox; the Old/New Town contrast is the showcase. ~9.3 × 7.8 km.
+        bbox=(-3.27, 55.92, -3.12, 55.99),
+        utm_epsg=32630,  # UTM 30N
+        geofabrik_region="europe/great-britain/scotland",
+        center=(55.953, -3.189),  # Princes Street
+        default_zoom=13,
+    ),
+    "buenos_aires": City(
+        key="buenos_aires",
+        name="Buenos Aires",
+        # Microcentro + San Telmo + Recoleta + Palermo + Puerto Madero.
+        # Canonical Spanish-colonial 100-vara grid (~127 m blocks), much
+        # finer than US grids. Mexico City heritage compare. ~11.9 × 10 km.
+        bbox=(-58.47, -34.65, -58.34, -34.56),
+        utm_epsg=32721,  # UTM 21S (southern hemisphere)
+        geofabrik_region="south-america/argentina",
+        center=(-34.603, -58.381),  # Obelisco
+        default_zoom=13,
+    ),
+    "detroit": City(
+        key="detroit",
+        name="Detroit, MI",
+        # Downtown + Midtown + Corktown + Lafayette Park + the Cadillac
+        # Square radial diagonal pattern (Woodward / Michigan / Grand
+        # River / Gratiot / Jefferson all radiate from Campus Martius).
+        # Tests whether a designed-but-hollowed-out network still reads
+        # as gridded. ~14.8 × 16.6 km.
+        bbox=(-83.16, 42.27, -82.98, 42.42),
+        utm_epsg=32617,  # UTM 17N
+        geofabrik_region="north-america/us/michigan",
+        center=(42.331, -83.046),  # Campus Martius
+        default_zoom=12,
+    ),
+    "slc": City(
+        key="slc",
+        name="Salt Lake City, UT",
+        # Brigham Young's hyper-wide 660-foot blocks centered on Temple
+        # Square. Tests whether a grid still reads as grid when block
+        # size is hostile to pedestrians. ~10.9 × 8.9 km.
+        bbox=(-111.95, 40.72, -111.82, 40.80),
+        utm_epsg=32612,  # UTM 12N
+        geofabrik_region="north-america/us/utah",
+        center=(40.770, -111.891),  # Temple Square
+        default_zoom=13,
     ),
 }
 

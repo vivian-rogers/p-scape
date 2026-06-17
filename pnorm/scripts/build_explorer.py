@@ -60,6 +60,14 @@ CITY_FOOT_PREFIX = {
     "east_bay":  "east_bay_foot",
     "champaign": "champaign_foot",
     "vienna":    "vienna_foot",
+    "amsterdam": "amsterdam_foot",
+    "copenhagen":"copenhagen_foot",
+    "kyoto":     "kyoto_foot",
+    "phoenix":   "phoenix_foot",
+    "edinburgh": "edinburgh_foot",
+    "buenos_aires": "buenos_aires_foot",
+    "detroit":   "detroit_foot",
+    "slc":       "slc_foot",
 }
 CITY_CAR_PREFIX = {
     "austin":    "austin_car",
@@ -84,6 +92,14 @@ CITY_CAR_PREFIX = {
     "east_bay":  "east_bay_car",
     "champaign": "champaign_car",
     "vienna":    "vienna_car",
+    "amsterdam": "amsterdam_car",
+    "copenhagen":"copenhagen_car",
+    "kyoto":     "kyoto_car",
+    "phoenix":   "phoenix_car",
+    "edinburgh": "edinburgh_car",
+    "buenos_aires": "buenos_aires_car",
+    "detroit":   "detroit_car",
+    "slc":       "slc_car",
 }
 
 PRETTY = {
@@ -109,6 +125,14 @@ PRETTY = {
     "east_bay": "East Bay (Berkeley + Oakland)",
     "champaign": "Champaign–Urbana, IL",
     "vienna": "Vienna, Austria",
+    "amsterdam": "Amsterdam",
+    "copenhagen": "Copenhagen",
+    "kyoto": "Kyoto, Japan",
+    "phoenix": "Phoenix, AZ",
+    "edinburgh": "Edinburgh",
+    "buenos_aires": "Buenos Aires",
+    "detroit": "Detroit, MI",
+    "slc": "Salt Lake City, UT",
 }
 
 
