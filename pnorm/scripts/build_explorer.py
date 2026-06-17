@@ -68,6 +68,7 @@ CITY_FOOT_PREFIX = {
     "buenos_aires": "buenos_aires_foot",
     "detroit":   "detroit_foot",
     "slc":       "slc_foot",
+    "london":    "london_foot",
 }
 CITY_CAR_PREFIX = {
     "austin":    "austin_car",
@@ -100,6 +101,7 @@ CITY_CAR_PREFIX = {
     "buenos_aires": "buenos_aires_car",
     "detroit":   "detroit_car",
     "slc":       "slc_car",
+    "london":    "london_car",
 }
 
 PRETTY = {
@@ -133,6 +135,7 @@ PRETTY = {
     "buenos_aires": "Buenos Aires",
     "detroit": "Detroit, MI",
     "slc": "Salt Lake City, UT",
+    "london": "London, UK",
 }
 
 

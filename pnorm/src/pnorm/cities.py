@@ -359,7 +359,10 @@ CITIES: dict[str, City] = {
         # bbox; the Old/New Town contrast is the showcase. ~9.3 × 7.8 km.
         bbox=(-3.27, 55.92, -3.12, 55.99),
         utm_epsg=32630,  # UTM 30N
-        geofabrik_region="europe/great-britain/scotland",
+        # Geofabrik moved Scotland: the old europe/great-britain/scotland
+        # path now returns a 9.6 KB error stub. Real PBF lives under
+        # europe/united-kingdom/scotland.
+        geofabrik_region="europe/united-kingdom/scotland",
         center=(55.953, -3.189),  # Princes Street
         default_zoom=13,
     ),
@@ -400,6 +403,20 @@ CITIES: dict[str, City] = {
         geofabrik_region="north-america/us/utah",
         center=(40.770, -111.891),  # Temple Square
         default_zoom=13,
+    ),
+    "london": City(
+        key="london",
+        name="London, UK",
+        # City of London + Westminster + Camden + Hackney + Tower Hamlets +
+        # Southwark + Lambeth + Islington. Covers the medieval Square Mile,
+        # the 17c Bloomsbury grids, the Georgian Mayfair grid, and the
+        # post-medieval radial roads connecting them. The bbox straddles
+        # 0° lon — central London is in UTM 30N. ~13.8 × 12.2 km.
+        bbox=(-0.22, 51.45, -0.02, 51.56),
+        utm_epsg=32630,  # UTM 30N
+        geofabrik_region="europe/united-kingdom/england/greater-london",
+        center=(51.507, -0.128),  # Charing Cross
+        default_zoom=12,
     ),
 }
 
