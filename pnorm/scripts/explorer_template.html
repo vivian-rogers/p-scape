@@ -1464,7 +1464,7 @@ function pColor(p) { return isFinite(p) ? paletteAt((p - VMIN) / (VMAX - VMIN)) 
 // Field-aware copy for the bottom legend.
 const FIELD_COPY = {
   p: {
-    name: 'effective <i>p</i> · mean',
+    name: 'effective <i>p</i> (mean)',
     sub: 'L<sup>p</sup>-norm exponent that reproduces the cell\'s <em>mean</em> ' +
          'circuity. Sensitive to outlier rays — a single freeway-blocked direction ' +
          'can drag <i>p</i> down even if the rest of the network is grid-like.',
@@ -1472,7 +1472,7 @@ const FIELD_COPY = {
     chip: 'effective <i>p</i> (mean)',
   },
   p_median: {
-    name: 'effective <i>p</i> · median',
+    name: 'effective <i>p</i> (median)',
     sub: 'L<sup>p</sup>-norm exponent that reproduces the cell\'s <em>median</em> ' +
          'circuity. Robust to outlier rays — high-circuity diffs vs the mean view ' +
          'flag cells with one or two blocked directions amid an otherwise normal network.',
@@ -1480,14 +1480,14 @@ const FIELD_COPY = {
     chip: 'effective <i>p</i> (median)',
   },
   circuity: {
-    name: 'circuity · mean',
+    name: 'circuity (mean)',
     sub: 'Mean network distance ÷ straight-line distance, averaged over a ring of 48 destinations. ' +
          'A perfect grid averages 4/π ≈ 1.273; Euclidean is 1.0.',
     anchors: ['2.5+', '1.27', '1.00'],
     chip: 'circuity (mean)',
   },
   circuity_median: {
-    name: 'circuity · median',
+    name: 'circuity (median)',
     sub: 'Median network distance ÷ straight-line distance over the 48 ring rays. ' +
          'Robust to one or two heavily detoured directions — grid anchor sits at cos(π/8)+sin(π/8) ≈ 1.31, Euclidean 1.0.',
     anchors: ['2.5+', '1.27', '1.00'],
