@@ -272,6 +272,19 @@ CITIES: dict[str, City] = {
         center=(37.8200, -122.2700),  # between downtown Oakland & Berkeley
         default_zoom=11,
     ),
+    "champaign": City(
+        key="champaign",
+        name="Champaign–Urbana, IL",
+        # Twin cities + UIUC campus + residential rings. Champaign sits on a
+        # true N/S grid; Urbana is rotated ~3° to follow section-line
+        # alignment. UIUC's Main Quad is a structurally different sub-region
+        # (pedestrian-dominated, internal axes). ~13 × 11 km.
+        bbox=(-88.30, 40.06, -88.15, 40.16),
+        utm_epsg=32616,  # UTM 16N
+        geofabrik_region="north-america/us/illinois",
+        center=(40.113, -88.225),  # between Champaign downtown + UIUC Quad
+        default_zoom=12,
+    ),
 }
 
 

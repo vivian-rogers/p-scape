@@ -58,6 +58,7 @@ CITY_FOOT_PREFIX = {
     "london_on": "london_on_foot",
     "bruges":    "bruges_foot",
     "east_bay":  "east_bay_foot",
+    "champaign": "champaign_foot",
 }
 CITY_CAR_PREFIX = {
     "austin":    "austin_car",
@@ -80,6 +81,7 @@ CITY_CAR_PREFIX = {
     "london_on": "london_on_car",
     "bruges":    "bruges_car",
     "east_bay":  "east_bay_car",
+    "champaign": "champaign_car",
 }
 
 PRETTY = {
@@ -103,6 +105,7 @@ PRETTY = {
     "london_on": "London, ON",
     "bruges": "Bruges",
     "east_bay": "East Bay (Berkeley + Oakland)",
+    "champaign": "Champaign–Urbana, IL",
 }
 
 
