@@ -59,6 +59,7 @@ CITY_FOOT_PREFIX = {
     "bruges":    "bruges_foot",
     "east_bay":  "east_bay_foot",
     "champaign": "champaign_foot",
+    "vienna":    "vienna_foot",
 }
 CITY_CAR_PREFIX = {
     "austin":    "austin_car",
@@ -82,6 +83,7 @@ CITY_CAR_PREFIX = {
     "bruges":    "bruges_car",
     "east_bay":  "east_bay_car",
     "champaign": "champaign_car",
+    "vienna":    "vienna_car",
 }
 
 PRETTY = {
@@ -106,6 +108,7 @@ PRETTY = {
     "bruges": "Bruges",
     "east_bay": "East Bay (Berkeley + Oakland)",
     "champaign": "Champaign–Urbana, IL",
+    "vienna": "Vienna, Austria",
 }
 
 

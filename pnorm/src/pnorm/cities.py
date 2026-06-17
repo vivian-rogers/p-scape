@@ -285,6 +285,19 @@ CITIES: dict[str, City] = {
         center=(40.113, -88.225),  # between Champaign downtown + UIUC Quad
         default_zoom=12,
     ),
+    "vienna": City(
+        key="vienna",
+        name="Vienna, Austria",
+        # Innere Stadt + Ringstraße + inner districts (Wieden, Mariahilf,
+        # Josefstadt, Alsergrund, Leopoldstadt, Landstraße). Medieval star
+        # core wrapped by the 1860s Ringstraße and the 19c gridded
+        # residential ring beyond it. ~11 × 7.8 km.
+        bbox=(16.30, 48.17, 16.45, 48.24),
+        utm_epsg=32633,  # UTM 33N
+        geofabrik_region="europe/austria",
+        center=(48.208, 16.373),  # Stephansplatz
+        default_zoom=12,
+    ),
 }
 
 
