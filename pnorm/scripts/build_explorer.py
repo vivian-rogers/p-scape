@@ -416,6 +416,27 @@ def main() -> None:
         raise RuntimeError(f"template {TEMPLATE} missing sentinel {SENTINEL!r}")
     html = template.replace(SENTINEL, payload_json)
 
+    # Sanity guardrail: the built HTML must reference the payload's snake_case
+    # field names that the JS reads at runtime. If the template was edited to
+    # rename a field but the JS-side reader wasn't updated (or vice versa),
+    # the deploy would render an empty map. Cheap to grep, expensive to debug.
+    required_in_html = [
+        '"raster_urls"',     # Each layer's URL map
+        '"data_raster_url"', # Each layer's data PNG URL
+        '"stats"',           # Per-field precomputed CDF / quantiles
+        '"bounds"',          # Per-layer L.imageOverlay bbox
+        'rasterUrls',        # RasterField opts param name (camelCase, JS-side)
+        'dataRasterUrl',     # RasterField opts param name (camelCase, JS-side)
+        'layerLoading',      # The "Loading…" pill DOM id used by show/hideLoading
+    ]
+    missing = [s for s in required_in_html if s not in html]
+    if missing:
+        raise RuntimeError(
+            "Built HTML is missing expected identifiers " + repr(missing) +
+            " — template and payload field names have drifted apart. "
+            "Check explorer_template.html + load_layer()'s manifest schema."
+        )
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(html)
     html_mb = out_path.stat().st_size / 1024 / 1024
