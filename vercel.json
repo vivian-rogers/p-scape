@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "mkdir -p web && cp pnorm/data/explorer.html web/index.html",
+  "buildCommand": "mkdir -p web/layers && cp pnorm/data/explorer.html web/index.html && cp pnorm/data/layers/*.png web/layers/",
   "outputDirectory": "web",
   "framework": null,
   "cleanUrls": true,
@@ -9,6 +9,12 @@
       "source": "/index.html",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/layers/(.*)\\.png",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" }
       ]
     }
   ]

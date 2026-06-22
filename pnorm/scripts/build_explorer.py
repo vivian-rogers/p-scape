@@ -20,11 +20,19 @@ from pnorm.lp_inversion import p_of_circuity
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent))
-from rasterize import rasterize
+from rasterize import rasterize, png_to_data_uri
 
 OUT_DEFAULT = Path("data/explorer.html")
+LAYERS_DIR = Path("data/layers")          # per-layer PNG files served at /layers/*.png
 TEMPLATE = Path("scripts/explorer_template.html")
 SENTINEL = "/*__PAYLOAD_JSON__*/null"
+
+# Default layer to preload (inline as base64 in the HTML for instant first
+# paint). Tuple of (city, mode, radius). The picked city should be one that
+# pretty much always has data and matches the dropdown defaults (foot r=800).
+PRELOAD_CITY = "nyc"
+PRELOAD_MODE = "foot"
+PRELOAD_RADIUS = 800
 
 # Per-city filename pattern. Some early runs used "_foot_core_" instead of
 # "_foot_" because they predate the unified-bbox convention. The new square
@@ -145,20 +153,22 @@ PRETTY = {
 }
 
 
-def load_layer(npz_path: Path) -> dict:
-    """Load a npz and rasterize it into the payload format the explorer consumes.
+def load_layer(npz_path: Path, layer_key: str) -> tuple[dict, dict]:
+    """Load a npz, rasterize it, and write 5 PNG files to data/layers/.
 
-    Layer shape (no per-cell array — visuals come from PNGs, hover values come
-    from a packed data PNG, derived stats are precomputed):
-        {
-          "spacing_m", "radius_m", "grid_type",
-          "rasters":  {p_mean, p_median, circuity_mean, circuity_median},  # data: URIs
-          "data_raster": "data:image/png;base64,…",                        # RGBA pack
-          "bounds": [[sw_lat, sw_lng], [ne_lat, ne_lng]],
-          "raster_shape": [n_rows, n_cols],
-          "ranges": {"p": [0, 2], "c": [1, 3]},
-          "stats":  {<field>: {median, p10, p90, cdf[101]}}
-        }
+    Returns (manifest_entry, raster_bytes) where:
+      - manifest_entry — JSON-serializable dict for the explorer payload:
+          {
+            spacing_m, radius_m, grid_type,
+            raster_urls: {field: "layers/<key>__<field>.png"},
+            data_raster_url: "layers/<key>__data.png",
+            bounds: [[sw_lat, sw_lng], [ne_lat, ne_lng]],
+            raster_shape: [n_rows, n_cols],
+            ranges: {"p": [0, 2], "c": [1, 3]},
+            stats: {<field>: {median, p10, p90, cdf[101]}}
+          }
+      - raster_bytes — {"<field>": png_bytes, "data": png_bytes} for any
+        downstream caller that wants to inline a specific layer (e.g. preload).
     """
     d = np.load(npz_path)
     spacing = float(d["spacing_m"])
@@ -193,10 +203,34 @@ def load_layer(npz_path: Path) -> dict:
         d = synthetic
 
     raster = rasterize(d)
-    raster["spacing_m"] = spacing
-    raster["radius_m"] = radius
-    raster["grid_type"] = grid_type
-    return raster
+
+    # Write the 5 PNGs to disk under data/layers/. Filenames are stable per
+    # (city, mode, radius, field) so a long-cache + ETag setup on the CDN
+    # keeps re-requests cheap.
+    raster_urls: dict[str, str] = {}
+    raster_bytes: dict[str, bytes] = {}
+    for field, png in raster["rasters"].items():
+        fname = f"{layer_key}__{field}.png"
+        (LAYERS_DIR / fname).write_bytes(png)
+        raster_urls[field] = f"layers/{fname}"
+        raster_bytes[field] = png
+    data_fname = f"{layer_key}__data.png"
+    (LAYERS_DIR / data_fname).write_bytes(raster["data_raster"])
+    data_raster_url = f"layers/{data_fname}"
+    raster_bytes["data"] = raster["data_raster"]
+
+    manifest_entry = {
+        "spacing_m": spacing,
+        "radius_m": radius,
+        "grid_type": grid_type,
+        "raster_urls": raster_urls,
+        "data_raster_url": data_raster_url,
+        "bounds": raster["bounds"],
+        "raster_shape": raster["raster_shape"],
+        "ranges": raster["ranges"],
+        "stats": raster["stats"],
+    }
+    return manifest_entry, raster_bytes
 
 
 def resolve_layer_path(city: str, mode: str, radius: int,
@@ -282,7 +316,16 @@ def main() -> None:
     if skip_extra:
         print(f"  skipping (per-city): {sorted(skip_extra)}")
 
+    # Fresh layers/ dir each build — stale files would accumulate forever
+    # otherwise, and a rebuild after dropping a city should remove the
+    # orphan PNGs from the deploy.
+    if LAYERS_DIR.exists():
+        import shutil
+        shutil.rmtree(LAYERS_DIR)
+    LAYERS_DIR.mkdir(parents=True, exist_ok=True)
+
     layers: dict[str, dict] = {}
+    raster_bytes_cache: dict[str, dict[str, bytes]] = {}   # for inlining preload
     cities_present = []
 
     for city, prefix in CITY_FOOT_PREFIX.items():
@@ -295,7 +338,9 @@ def main() -> None:
             path = resolve_layer_path(city, "foot", r, CITY_FOOT_PREFIX)
             if path is not None:
                 key = f"{city}__foot__{r}"
-                layers[key] = load_layer(path)
+                manifest_entry, bytes_dict = load_layer(path, key)
+                layers[key] = manifest_entry
+                raster_bytes_cache[key] = bytes_dict
                 any_layer = True
         if any_layer:
             cities_present.append(city)
@@ -307,7 +352,9 @@ def main() -> None:
             path = resolve_layer_path(city, "car", r, CITY_CAR_PREFIX)
             if path is not None:
                 key = f"{city}__car__{r}"
-                layers[key] = load_layer(path)
+                manifest_entry, bytes_dict = load_layer(path, key)
+                layers[key] = manifest_entry
+                raster_bytes_cache[key] = bytes_dict
                 if not any_layer:
                     cities_present.append(city)
                     any_layer = True
@@ -336,12 +383,31 @@ def main() -> None:
         for city in cities_present
     }
 
+    # Preload: replace the default layer's raster URLs with inline base64
+    # data URIs so first paint is instant — no network round trips for the
+    # default city × mode × radius. RasterField transparently accepts data
+    # URIs in the same field where it'd otherwise expect a URL.
+    preload_key = f"{PRELOAD_CITY}__{PRELOAD_MODE}__{PRELOAD_RADIUS}"
+    if preload_key in layers and preload_key in raster_bytes_cache:
+        b = raster_bytes_cache[preload_key]
+        layers[preload_key]["raster_urls"] = {
+            field: png_to_data_uri(b[field])
+            for field in ("p_mean", "p_median", "circuity_mean", "circuity_median")
+        }
+        layers[preload_key]["data_raster_url"] = png_to_data_uri(b["data"])
+        preload_bytes = sum(len(v) for v in b.values())
+        print(f"  preloading {preload_key} ({preload_bytes // 1024} KB inline)")
+    else:
+        print(f"  WARNING: preload target {preload_key} not present; "
+              f"deploy will need a network fetch for first paint")
+
     payload = {
         "layers": layers,
         "centers": centers,
         "pretty": {c: PRETTY[c] for c in cities_present},
         "cities": cities_present,
         "radii": radii_for,
+        "preload_key": preload_key,
     }
     payload_json = json.dumps(payload, separators=(",", ":"))
 
@@ -352,10 +418,13 @@ def main() -> None:
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(html)
-    size_mb = out_path.stat().st_size / 1024 / 1024
-    n_rasters = sum(len(l.get("rasters", {})) + (1 if l.get("data_raster") else 0)
-                    for l in layers.values())
-    print(f"\nwrote {out_path}  ({size_mb:.1f} MB, {len(layers)} layers, {n_rasters} PNGs embedded)")
+    html_mb = out_path.stat().st_size / 1024 / 1024
+    layer_files = sorted(LAYERS_DIR.glob("*.png"))
+    layers_mb = sum(p.stat().st_size for p in layer_files) / 1024 / 1024
+    print(f"\nwrote {out_path}  ({html_mb:.1f} MB HTML, {len(layers)} layers)")
+    print(f"wrote {LAYERS_DIR}/  ({layers_mb:.1f} MB across {len(layer_files)} PNG files)")
+    print(f"  first-paint payload (HTML + preload inline): {html_mb:.1f} MB")
+    print(f"  lazy-loaded thereafter: per-layer ~{(layers_mb / max(len(layers), 1)):.2f} MB")
 
 
 

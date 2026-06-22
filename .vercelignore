@@ -1,13 +1,17 @@
-# Vercel only needs `pnorm/data/explorer.html` and `vercel.json` to build.
+# Vercel needs:
+#   - pnorm/data/explorer.html     (the lean HTML + JS shell; ~1.4 MB)
+#   - pnorm/data/layers/*.png      (per-layer rasters, ~50 KB each, lazy-loaded)
+#   - vercel.json
 # Everything else in pnorm/data/ is multi-GB local research state (OSM
-# extracts, OSRM tile dirs, per-city heatmap HTML files) that's gitignored
-# but would otherwise be uploaded by `vercel deploy`.
+# extracts, OSRM tile dirs, per-city heatmap HTML, sidecar K×K matrices)
+# that's gitignored but would otherwise be uploaded by `vercel deploy`.
 #
-# The raster pipeline (scripts/rasterize.py + scripts/build_explorer.py) now
-# emits a ~60 MB single-file explorer that fits the Vercel 100 MB per-file
-# cap without the old --skip / --keep / --skip-extra trimming dance.
+# The lazy-load architecture (scripts/build_explorer.py) writes per-layer
+# PNGs to data/layers/<key>__<field>.png; the HTML inlines only NYC's
+# default layer for instant first paint and fetches the rest on demand.
 pnorm/data/*
 !pnorm/data/explorer.html
+!pnorm/data/layers/
 
 # Local-only directories
 .venv/

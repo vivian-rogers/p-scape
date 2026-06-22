@@ -97,12 +97,17 @@ def _quantize_c(values: np.ndarray) -> np.ndarray:
     return np.clip((values - C_MIN) / (C_MAX - C_MIN), 0.0, 1.0).__mul__(255).astype(np.uint8)
 
 
-def _png_data_uri(arr_rgba: np.ndarray) -> str:
-    """Encode an (H, W, 4) uint8 array as a base64 data: URI."""
+def _png_bytes(arr_rgba: np.ndarray) -> bytes:
+    """Encode an (H, W, 4) uint8 array as PNG bytes."""
     img = Image.fromarray(arr_rgba, "RGBA")
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=True)
-    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+    return buf.getvalue()
+
+
+def png_to_data_uri(png_bytes: bytes) -> str:
+    """Wrap PNG bytes as a `data:image/png;base64,…` URI (for inlined preload)."""
+    return "data:image/png;base64," + base64.b64encode(png_bytes).decode("ascii")
 
 
 def _bounds_from_utm(xy: np.ndarray, spacing_m: float, utm_epsg: int) -> list[list[float]]:
@@ -151,7 +156,7 @@ def rasterize(d) -> dict:
         ("circuity_median", c_median, _normalize_c, "c"),
     ]
 
-    rasters: dict[str, str] = {}
+    rasters: dict[str, bytes] = {}
     stats: dict[str, dict] = {}
     for name, values, normalize_fn, kind in fields:
         finite = np.isfinite(values)
@@ -163,7 +168,7 @@ def rasterize(d) -> dict:
             idx = np.clip((t * 255).astype(np.int32), 0, 255)
             img[rows[place], cols[place], :3] = PALETTE_LUT[idx]
             img[rows[place], cols[place], 3] = 255
-        rasters[name] = _png_data_uri(img)
+        rasters[name] = _png_bytes(img)
 
         # Precomputed stats — what the explorer used to compute by iterating
         # the cells array on every layer change.
@@ -188,13 +193,13 @@ def rasterize(d) -> dict:
         data[rows[valid], cols[valid], 1] = _quantize_c(c_mean[valid])
         data[rows[valid], cols[valid], 2] = _quantize_p(p_median[valid])
         data[rows[valid], cols[valid], 3] = 255
-    data_raster = _png_data_uri(data)
+    data_raster = _png_bytes(data)
 
     bounds = _bounds_from_utm(xy, spacing_m, utm_epsg)
 
     return {
-        "rasters": rasters,
-        "data_raster": data_raster,
+        "rasters": rasters,           # {field: PNG bytes}
+        "data_raster": data_raster,   # PNG bytes
         "bounds": bounds,
         "raster_shape": [n_rows, n_cols],
         "ranges": {"p": [P_MIN, P_MAX], "c": [C_MIN, C_MAX]},
