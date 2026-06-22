@@ -418,6 +418,35 @@ CITIES: dict[str, City] = {
         center=(51.507, -0.128),  # Charing Cross
         default_zoom=12,
     ),
+    "charlotte": City(
+        key="charlotte",
+        name="Charlotte, NC",
+        # Uptown (CBD with the Tryon-Path-rotated ~30° historic grid) +
+        # South End + Dilworth + Myers Park + Plaza Midwood + NoDa. The
+        # four wards around Trade & Tryon each have their own subgrid
+        # alignment; major arterials (Trade, Tryon, Independence,
+        # Wilkinson) follow the old Indian Trading Path. Outside Uptown
+        # the network goes suburban quickly. ~14.5 × 12.2 km.
+        bbox=(-80.92, 35.17, -80.76, 35.28),
+        utm_epsg=32617,  # UTM 17N
+        geofabrik_region="north-america/us/north-carolina",
+        center=(35.227, -80.843),  # Trade & Tryon
+        default_zoom=12,
+    ),
+    "charlottesville": City(
+        key="charlottesville",
+        name="Charlottesville, VA",
+        # UVA's Academical Village (Jefferson's 1817 grid) + Downtown
+        # Mall (pedestrian-only since 1976) + Belmont + Fifeville + the
+        # hillside residential rings. Streets follow topography outside
+        # the planned cores; major roads radiate from Court Square.
+        # ~11.4 × 8.9 km.
+        bbox=(-78.55, 37.99, -78.42, 38.07),
+        utm_epsg=32617,  # UTM 17N
+        geofabrik_region="north-america/us/virginia",
+        center=(38.029, -78.476),  # Downtown Mall
+        default_zoom=13,
+    ),
 }
 
 

@@ -69,6 +69,8 @@ CITY_FOOT_PREFIX = {
     "detroit":   "detroit_foot",
     "slc":       "slc_foot",
     "london":    "london_foot",
+    "charlotte": "charlotte_foot",
+    "charlottesville": "charlottesville_foot",
 }
 CITY_CAR_PREFIX = {
     "austin":    "austin_car",
@@ -102,6 +104,8 @@ CITY_CAR_PREFIX = {
     "detroit":   "detroit_car",
     "slc":       "slc_car",
     "london":    "london_car",
+    "charlotte": "charlotte_car",
+    "charlottesville": "charlottesville_car",
 }
 
 PRETTY = {
@@ -136,6 +140,8 @@ PRETTY = {
     "detroit": "Detroit, MI",
     "slc": "Salt Lake City, UT",
     "london": "London, UK",
+    "charlotte": "Charlotte, NC",
+    "charlottesville": "Charlottesville, VA",
 }
 
 
