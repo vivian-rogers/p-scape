@@ -11,7 +11,8 @@
 # default layer for instant first paint and fetches the rest on demand.
 pnorm/data/*
 !pnorm/data/explorer.html
-!pnorm/data/layers/
+!pnorm/data/layers
+!pnorm/data/layers/**
 
 # Local-only directories
 .venv/
