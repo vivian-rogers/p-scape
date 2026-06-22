@@ -36,7 +36,8 @@ async def run_grid(spacing_m, radius_m, n_samples, url, out_npz,
                    bbox=AUSTIN_BBOX, inset_buffer_m=500.0,
                    city_key=None, use_water_mask=True,
                    grid_type="square", tile_buffer_m=0.0,
-                   concurrency=16, seed=None, save_full_matrix=True):
+                   concurrency=16, seed=None, save_full_matrix=True,
+                   sampling_mode="jittered-mc"):
     # The origin grid is inset from the city bbox so the destination ring
     # stays inside the routable graph. The K jittered origins live inside
     # the tile box, so add half a spacing of extra cushion. When the OSRM
@@ -115,14 +116,79 @@ async def run_grid(spacing_m, radius_m, n_samples, url, out_npz,
                               (n, n_samples, 2)).astype(np.float64)
 
     async def process_tile(i):
-        """Process one tile: K-jittered Monte Carlo via a single /table call.
+        """Process one tile.
 
-        Issues ONE OSRM /table query of K sources × K destinations per tile.
-        The diagonal (origin_k → destination_k) is the principal sample;
-        the off-diagonal pairs are saved to the sidecar matrix.
+        Two sampling modes:
+        - 'jittered-mc' (default): K-jittered Monte Carlo. K random origins
+          inside the tile, each with one ray at a fixed angle θ_k. /table
+          call returns K×K matrix; we read the diagonal (origin_k → dest_k)
+          for the K-sample circuity estimate. Off-diagonal pairs cached to
+          the sidecar matrix.
+        - 'legacy-ring': single tile-centroid origin + K destinations on a
+          Euclidean ring at radius R around it. /table call is 1×K which is
+          K-times cheaper per tile but gives correlated samples (all sharing
+          one origin's snap, all directions from one point). The OG K=1
+          catalog scheme. Used when the K-MC scheme is too expensive for
+          dense networks (NYC foot at 290k tiles × 2304 pairs would take
+          days).
         """
         if bad_origin[i]:
             return
+
+        if sampling_mode == "legacy-ring":
+            # One origin = tile center. n_samples destinations on the ring.
+            origin_utm = xy[i]                                         # (2,)
+            dests_utm = origin_utm + np.column_stack(
+                [radius_m * cos_t, radius_m * sin_t])                  # (K, 2)
+
+            o_lon_arr, o_lat_arr = to_lonlat(origin_utm[0:1], origin_utm[1:2])
+            dl_lon, dl_lat = to_lonlat(dests_utm[:, 0], dests_utm[:, 1])
+            sources = [(float(np.asarray(o_lon_arr)[0]),
+                        float(np.asarray(o_lat_arr)[0]))]
+            dests = list(zip(np.asarray(dl_lon, dtype=float).tolist(),
+                             np.asarray(dl_lat, dtype=float).tolist()))
+
+            result = await osrm.table(sources, dests)
+            if result is None:
+                return
+            distances, src_snap_ll, dst_snap_ll = result   # (1,K), (1,2), (K,2)
+
+            osnap_x_s, osnap_y_s = to_utm(src_snap_ll[0, 0], src_snap_ll[0, 1])
+            dsnap_x, dsnap_y = to_utm(dst_snap_ll[:, 0], dst_snap_ll[:, 1])
+            osnap_x_s = float(osnap_x_s); osnap_y_s = float(osnap_y_s)
+            dsnap_x = np.asarray(dsnap_x, dtype=float)
+            dsnap_y = np.asarray(dsnap_y, dtype=float)
+
+            o_snap_off_scalar = float(np.hypot(osnap_x_s - origin_utm[0],
+                                               osnap_y_s - origin_utm[1]))
+            d_snap_off = np.hypot(dsnap_x - dests_utm[:, 0],
+                                  dsnap_y - dests_utm[:, 1])
+
+            if o_snap_off_scalar > max_origin_snap_m:
+                bad_origin[i] = True
+                return
+
+            d_route_row = distances[0]                              # (K,)
+            d_euclid = np.hypot(dsnap_x - osnap_x_s, dsnap_y - osnap_y_s)
+            ok = (np.isfinite(d_route_row)
+                  & (d_euclid > 0)
+                  & (d_snap_off <= max_snap_frac * radius_m))
+            n_valid_i = int(ok.sum())
+            n_valid[i] = n_valid_i
+            if n_valid_i < min_valid_rays:
+                bad_origin[i] = True
+                return
+            origin_snap_m[i] = o_snap_off_scalar
+            circ_ok = d_route_row[ok] / d_euclid[ok]
+            mean_circ[i] = float(circ_ok.mean())
+            mean_exc[i] = float((d_route_row[ok] - d_euclid[ok]).mean())
+            circuities[i, ok] = circ_ok.astype(np.float32)
+            d_route_m[i, ok] = d_route_row[ok].astype(np.float32)
+            # No full-matrix sidecar in legacy-ring mode (would be 1×K, not
+            # K×K). Caller passes save_full_matrix=False for legacy runs.
+            return
+
+        # Default: jittered-mc.
         offsets = all_offsets[i]
         origins_utm = xy[i] + offsets
         dests_utm = origins_utm + np.column_stack([radius_m * cos_t, radius_m * sin_t])
@@ -367,6 +433,15 @@ if __name__ == "__main__":
     ap.add_argument("--no-full-matrix", action="store_true",
                     help="skip the sidecar K×K full-distance-matrix npz "
                          "(big — ~150-300 MB per layer compressed)")
+    ap.add_argument("--sampling-mode", choices=("jittered-mc", "legacy-ring"),
+                    default="jittered-mc",
+                    help="'jittered-mc' (default): K-jittered Monte Carlo, "
+                         "K origins × K destinations via /table. "
+                         "'legacy-ring': 1 tile-centroid origin × K ring "
+                         "destinations, the OG K=1 catalog scheme. Use the "
+                         "legacy mode when a dense city's foot graph makes "
+                         "the K×K pairs (e.g. 2304 routes/tile at K=48) "
+                         "prohibitive.")
     a = ap.parse_args()
 
     if a.city:
@@ -378,11 +453,15 @@ if __name__ == "__main__":
         bbox = tuple(float(x) for x in a.bbox.split(","))
 
     if not a.render_only:
+        # legacy-ring uses 1×K /table (not K×K) so the "full matrix" sidecar
+        # would just be a 1×K row — not worth saving as a separate file.
+        save_full = (not a.no_full_matrix) and a.sampling_mode != "legacy-ring"
         asyncio.run(
             run_grid(a.spacing, a.radius, a.n, a.url, a.npz, bbox=bbox,
                      city_key=a.city, use_water_mask=not a.no_water_mask,
                      grid_type=a.grid_type, tile_buffer_m=a.tile_buffer_m,
                      concurrency=a.concurrency, seed=a.seed,
-                     save_full_matrix=not a.no_full_matrix)
+                     save_full_matrix=save_full,
+                     sampling_mode=a.sampling_mode)
         )
     render(a.npz, a.out)
