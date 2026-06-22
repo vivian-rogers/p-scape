@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "mkdir -p web/layers && cp pnorm/data/explorer.html web/index.html && cp pnorm/data/layers/*.png web/layers/",
+  "buildCommand": "mkdir -p web && cp pnorm/data/explorer.html web/index.html && cp -r pnorm/data/layers web/",
   "outputDirectory": "web",
   "framework": null,
   "cleanUrls": true,
