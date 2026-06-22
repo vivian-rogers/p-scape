@@ -27,6 +27,12 @@ class City:
     # (lat, lon) — folium map default center.
     center: tuple[float, float]
     default_zoom: int
+    # Optional extra Geofabrik regions to merge into the primary PBF before
+    # the OSRM extract. Use when the city's bbox spans multiple administrative
+    # regions whose PBFs are separately published (e.g. NYC's bbox includes
+    # Jersey City, which sits in north-america/us/new-jersey not new-york).
+    # build_tiles.sh downloads each and osmium-merges them with the primary.
+    geofabrik_extras: tuple[str, ...] = ()
 
 
 CITIES: dict[str, City] = {
@@ -44,12 +50,19 @@ CITIES: dict[str, City] = {
     "nyc": City(
         key="nyc",
         name="New York City",
-        # Manhattan + Park Slope + LIC + Astoria + South Bronx; ~15x21 km
-        bbox=(-74.03, 40.66, -73.85, 40.85),
+        # Manhattan + all of Brooklyn + full Staten Island + Jersey City /
+        # Hoboken / Weehawken + parts of Newark + South Bronx + western
+        # Queens. The five-borough + Hudson-waterfront sprawl. ~35 × 46 km.
+        # Previous tighter bbox (-74.03, 40.66, -73.85, 40.85) covered
+        # only the Manhattan-centric core.
+        bbox=(-74.25, 40.50, -73.83, 40.92),
         utm_epsg=32618,  # UTM 18N
         geofabrik_region="north-america/us/new-york",
+        # NJ side of the Hudson lives in the new-jersey PBF; merge it in so
+        # Jersey City / Hoboken / Newark have a routable network.
+        geofabrik_extras=("north-america/us/new-jersey",),
         center=(40.7589, -73.9857),  # Times Square
-        default_zoom=12,
+        default_zoom=11,
     ),
     "houston": City(
         key="houston",
