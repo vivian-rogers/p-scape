@@ -52,15 +52,13 @@ CITIES: dict[str, City] = {
         name="New York City",
         # Manhattan + all of Brooklyn + full Staten Island + Jersey City /
         # Hoboken / Weehawken + parts of Newark + South Bronx + western
-        # Queens. The five-borough + Hudson-waterfront sprawl. ~35 × 46 km.
-        # Previous tighter bbox (-74.03, 40.66, -73.85, 40.85) covered
-        # only the Manhattan-centric core.
+        # Queens. ~35 × 46 km, five-borough + Hudson-waterfront sprawl.
+        # Bbox spans NY + NJ. Use the full US PBF rather than osmium-merging
+        # the two state files — merging produces duplicate node IDs at the
+        # Hudson River border which osmium-extract rejects.
         bbox=(-74.25, 40.50, -73.83, 40.92),
         utm_epsg=32618,  # UTM 18N
-        geofabrik_region="north-america/us/new-york",
-        # NJ side of the Hudson lives in the new-jersey PBF; merge it in so
-        # Jersey City / Hoboken / Newark have a routable network.
-        geofabrik_extras=("north-america/us/new-jersey",),
+        geofabrik_region="north-america/us",
         center=(40.7589, -73.9857),  # Times Square
         default_zoom=11,
     ),

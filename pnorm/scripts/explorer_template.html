@@ -2227,6 +2227,16 @@ document.getElementById('tourBtn').addEventListener('click', () => {
   introBack.classList.remove('hidden');
 });
 
+// Click anywhere on the backdrop (i.e. outside the .intro-card) to dismiss
+// the tour. Uses event.target === currentTarget to distinguish "clicked on
+// the dim background" from "clicked through to a card-internal element"
+// (which bubbles up but wasn't directed at the backdrop itself).
+introBack.addEventListener('click', (e) => {
+  if (e.target === introBack) {
+    introBack.classList.add('hidden');
+  }
+});
+
 // ────────────── Boot ──────────────
 function boot() {
   // Default city/mode/radius
