@@ -37,7 +37,8 @@ async def run_grid(spacing_m, radius_m, n_samples, url, out_npz,
                    city_key=None, use_water_mask=True,
                    grid_type="square", tile_buffer_m=0.0,
                    concurrency=16, seed=None, save_full_matrix=True,
-                   sampling_mode="jittered-mc"):
+                   sampling_mode="jittered-mc",
+                   origin_retries=0, min_valid_rays_frac=0.5):
     # The origin grid is inset from the city bbox so the destination ring
     # stays inside the routable graph. The K jittered origins live inside
     # the tile box, so add half a spacing of extra cushion. When the OSRM
@@ -101,7 +102,7 @@ async def run_grid(spacing_m, radius_m, n_samples, url, out_npz,
         d_route_matrix_m = src_snap_lonlat = dst_snap_lonlat = None
 
     max_origin_snap_m = float(min(spacing_m, 100.0))
-    min_valid_rays = max(3, int(round(n_samples * 0.5)))
+    min_valid_rays = max(3, int(round(n_samples * min_valid_rays_frac)))
     max_snap_frac = 0.25
 
     if seed is None:
@@ -136,56 +137,67 @@ async def run_grid(spacing_m, radius_m, n_samples, url, out_npz,
             return
 
         if sampling_mode == "legacy-ring":
-            # One origin = tile center. n_samples destinations on the ring.
-            origin_utm = xy[i]                                         # (2,)
-            dests_utm = origin_utm + np.column_stack(
-                [radius_m * cos_t, radius_m * sin_t])                  # (K, 2)
+            # One origin per tile + K ring destinations. Try centroid first;
+            # if its snap fails, fall back to up to `origin_retries` jittered
+            # points inside the tile before giving up. For water-heavy bboxes
+            # (e.g. NYC) the centroid often lands in water / parks; the retry
+            # lets the surrounding land area still contribute data.
+            origin_attempts = [xy[i]]
+            for k in range(origin_retries):
+                origin_attempts.append(xy[i] + all_offsets[i, k])
 
-            o_lon_arr, o_lat_arr = to_lonlat(origin_utm[0:1], origin_utm[1:2])
-            dl_lon, dl_lat = to_lonlat(dests_utm[:, 0], dests_utm[:, 1])
-            sources = [(float(np.asarray(o_lon_arr)[0]),
-                        float(np.asarray(o_lat_arr)[0]))]
-            dests = list(zip(np.asarray(dl_lon, dtype=float).tolist(),
-                             np.asarray(dl_lat, dtype=float).tolist()))
+            success = False
+            for origin_utm in origin_attempts:
+                dests_utm = origin_utm + np.column_stack(
+                    [radius_m * cos_t, radius_m * sin_t])              # (K, 2)
 
-            result = await osrm.table(sources, dests)
-            if result is None:
-                return
-            distances, src_snap_ll, dst_snap_ll = result   # (1,K), (1,2), (K,2)
+                o_lon_arr, o_lat_arr = to_lonlat(origin_utm[0:1], origin_utm[1:2])
+                dl_lon, dl_lat = to_lonlat(dests_utm[:, 0], dests_utm[:, 1])
+                sources = [(float(np.asarray(o_lon_arr)[0]),
+                            float(np.asarray(o_lat_arr)[0]))]
+                dests = list(zip(np.asarray(dl_lon, dtype=float).tolist(),
+                                 np.asarray(dl_lat, dtype=float).tolist()))
 
-            osnap_x_s, osnap_y_s = to_utm(src_snap_ll[0, 0], src_snap_ll[0, 1])
-            dsnap_x, dsnap_y = to_utm(dst_snap_ll[:, 0], dst_snap_ll[:, 1])
-            osnap_x_s = float(osnap_x_s); osnap_y_s = float(osnap_y_s)
-            dsnap_x = np.asarray(dsnap_x, dtype=float)
-            dsnap_y = np.asarray(dsnap_y, dtype=float)
+                result = await osrm.table(sources, dests)
+                if result is None:
+                    continue   # OSRM timeout / error → try next origin
+                distances, src_snap_ll, dst_snap_ll = result   # (1,K), (1,2), (K,2)
 
-            o_snap_off_scalar = float(np.hypot(osnap_x_s - origin_utm[0],
-                                               osnap_y_s - origin_utm[1]))
-            d_snap_off = np.hypot(dsnap_x - dests_utm[:, 0],
-                                  dsnap_y - dests_utm[:, 1])
+                osnap_x_s, osnap_y_s = to_utm(src_snap_ll[0, 0], src_snap_ll[0, 1])
+                dsnap_x, dsnap_y = to_utm(dst_snap_ll[:, 0], dst_snap_ll[:, 1])
+                osnap_x_s = float(osnap_x_s); osnap_y_s = float(osnap_y_s)
+                dsnap_x = np.asarray(dsnap_x, dtype=float)
+                dsnap_y = np.asarray(dsnap_y, dtype=float)
 
-            if o_snap_off_scalar > max_origin_snap_m:
+                o_snap_off_scalar = float(np.hypot(osnap_x_s - origin_utm[0],
+                                                   osnap_y_s - origin_utm[1]))
+                if o_snap_off_scalar > max_origin_snap_m:
+                    continue   # origin landed off-network → try next
+
+                d_snap_off = np.hypot(dsnap_x - dests_utm[:, 0],
+                                      dsnap_y - dests_utm[:, 1])
+                d_route_row = distances[0]                              # (K,)
+                d_euclid = np.hypot(dsnap_x - osnap_x_s, dsnap_y - osnap_y_s)
+                ok = (np.isfinite(d_route_row)
+                      & (d_euclid > 0)
+                      & (d_snap_off <= max_snap_frac * radius_m))
+                n_valid_i = int(ok.sum())
+                if n_valid_i < min_valid_rays:
+                    continue   # too few rays survived snap → try next origin
+
+                # Success.
+                n_valid[i] = n_valid_i
+                origin_snap_m[i] = o_snap_off_scalar
+                circ_ok = d_route_row[ok] / d_euclid[ok]
+                mean_circ[i] = float(circ_ok.mean())
+                mean_exc[i] = float((d_route_row[ok] - d_euclid[ok]).mean())
+                circuities[i, ok] = circ_ok.astype(np.float32)
+                d_route_m[i, ok] = d_route_row[ok].astype(np.float32)
+                success = True
+                break
+
+            if not success:
                 bad_origin[i] = True
-                return
-
-            d_route_row = distances[0]                              # (K,)
-            d_euclid = np.hypot(dsnap_x - osnap_x_s, dsnap_y - osnap_y_s)
-            ok = (np.isfinite(d_route_row)
-                  & (d_euclid > 0)
-                  & (d_snap_off <= max_snap_frac * radius_m))
-            n_valid_i = int(ok.sum())
-            n_valid[i] = n_valid_i
-            if n_valid_i < min_valid_rays:
-                bad_origin[i] = True
-                return
-            origin_snap_m[i] = o_snap_off_scalar
-            circ_ok = d_route_row[ok] / d_euclid[ok]
-            mean_circ[i] = float(circ_ok.mean())
-            mean_exc[i] = float((d_route_row[ok] - d_euclid[ok]).mean())
-            circuities[i, ok] = circ_ok.astype(np.float32)
-            d_route_m[i, ok] = d_route_row[ok].astype(np.float32)
-            # No full-matrix sidecar in legacy-ring mode (would be 1×K, not
-            # K×K). Caller passes save_full_matrix=False for legacy runs.
             return
 
         # Default: jittered-mc.
@@ -442,6 +454,15 @@ if __name__ == "__main__":
                          "legacy mode when a dense city's foot graph makes "
                          "the K×K pairs (e.g. 2304 routes/tile at K=48) "
                          "prohibitive.")
+    ap.add_argument("--origin-retries", type=int, default=0,
+                    help="legacy-ring only: if the tile centroid fails snap, "
+                         "try up to N jittered points inside the tile before "
+                         "giving up. Helps water-heavy bboxes (NYC).")
+    ap.add_argument("--min-valid-rays-frac", type=float, default=0.5,
+                    help="reject tiles where fewer than this fraction of the "
+                         "n_samples rays survive snap-correction (default 0.5). "
+                         "Lower to recover more tiles in fragmented networks; "
+                         "raise for stricter quality.")
     a = ap.parse_args()
 
     if a.city:
@@ -462,6 +483,8 @@ if __name__ == "__main__":
                      grid_type=a.grid_type, tile_buffer_m=a.tile_buffer_m,
                      concurrency=a.concurrency, seed=a.seed,
                      save_full_matrix=save_full,
-                     sampling_mode=a.sampling_mode)
+                     sampling_mode=a.sampling_mode,
+                     origin_retries=a.origin_retries,
+                     min_valid_rays_frac=a.min_valid_rays_frac)
         )
     render(a.npz, a.out)

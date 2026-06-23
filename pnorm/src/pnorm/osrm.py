@@ -81,7 +81,7 @@ class AsyncOSRM:
     """
 
     def __init__(self, base_url: str = "http://localhost:5000",
-                 timeout: float = 30.0, concurrency: int = 16):
+                 timeout: float = 120.0, concurrency: int = 16):
         self.base = base_url.rstrip("/")
         self.timeout = timeout
         self.concurrency = concurrency
