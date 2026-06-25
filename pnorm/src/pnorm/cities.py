@@ -458,6 +458,19 @@ CITIES: dict[str, City] = {
         center=(38.029, -78.476),  # Downtown Mall
         default_zoom=13,
     ),
+    "madison": City(
+        key="madison",
+        name="Madison, WI",
+        # Isthmus capital + UW-Madison + Monona, Middleton, Fitchburg
+        # ring. Downtown lies on the State St / Capitol Square axis
+        # squeezed between Lakes Mendota and Monona — produces an
+        # unusually constrained urban form. ~24 × 25 km.
+        bbox=(-89.55, 42.97, -89.25, 43.20),
+        utm_epsg=32616,  # UTM 16N
+        geofabrik_region="north-america/us/wisconsin",
+        center=(43.0747, -89.3838),  # Capitol Square
+        default_zoom=12,
+    ),
 }
 
 
