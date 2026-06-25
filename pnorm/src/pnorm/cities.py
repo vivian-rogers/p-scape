@@ -471,6 +471,19 @@ CITIES: dict[str, City] = {
         center=(43.0747, -89.3838),  # Capitol Square
         default_zoom=12,
     ),
+    "boulder": City(
+        key="boulder",
+        name="Boulder, CO",
+        # Downtown grid (Pearl St Mall) + CU campus + Flatirons foothills
+        # to the west + Gunbarrel / north Boulder out to the city edge.
+        # Streets are gridded in the plains-side core, then forced into
+        # topographic curves where the mountains start. ~13.6 × 16.7 km.
+        bbox=(-105.31, 39.95, -105.15, 40.10),
+        utm_epsg=32613,  # UTM 13N
+        geofabrik_region="north-america/us/colorado",
+        center=(40.0190, -105.2747),  # Pearl Street Mall
+        default_zoom=13,
+    ),
 }
 
 
