@@ -144,9 +144,15 @@ CITIES: dict[str, City] = {
         name="Washington, DC",
         # L'Enfant diamond + Adams Morgan + Capitol Hill + Anacostia +
         # Arlington edge + inner Bethesda. Captures the radial diagonals.
+        # Bbox crosses DC/MD/VA borders. The district-of-columbia
+        # Geofabrik PBF is just DC (20 MB) — buffer-cropping past the
+        # district adds no OSM data, so car r=16000 stalls and foot
+        # grids fail near the bbox edge. Merging MD+VA+DC produces
+        # duplicate node IDs at state borders (osmium-extract rejects).
+        # Use the full US PBF like NYC does — already on disk.
         bbox=(-77.13, 38.81, -76.94, 39.00),
-        utm_epsg=32618,  # UTM 18N (same as NYC; DC is at -77° W)
-        geofabrik_region="north-america/us/district-of-columbia",
+        utm_epsg=32618,  # UTM 18N
+        geofabrik_region="north-america/us",
         center=(38.8951, -77.0364),  # White House-ish
         default_zoom=12,
     ),
@@ -469,6 +475,20 @@ CITIES: dict[str, City] = {
         utm_epsg=32616,  # UTM 16N
         geofabrik_region="north-america/us/wisconsin",
         center=(43.0747, -89.3838),  # Capitol Square
+        default_zoom=12,
+    ),
+    "katy": City(
+        key="katy",
+        name="Katy + Fulshear, TX",
+        # West-of-Houston exurban sprawl. Old Katy / Katy MUD core +
+        # Mason Rd commercial corridor (east edge) + Cinco Ranch +
+        # LaCenterra + Fulshear's newer subdivisions out west. I-10
+        # bisects east-west. The cul-de-sac / curvilinear "loop and
+        # lollipop" pattern dominates outside the old grid. ~16 × 21 km.
+        bbox=(-95.90, 29.66, -95.73, 29.85),
+        utm_epsg=32615,  # UTM 15N
+        geofabrik_region="north-america/us/texas",
+        center=(29.7858, -95.8244),  # Old Katy: Avenue B & 1st St
         default_zoom=12,
     ),
     "boulder": City(

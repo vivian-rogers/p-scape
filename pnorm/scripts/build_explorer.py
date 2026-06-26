@@ -81,6 +81,7 @@ CITY_FOOT_PREFIX = {
     "charlottesville": "charlottesville_foot",
     "madison":   "madison_foot",
     "boulder":   "boulder_foot",
+    "katy":      "katy_foot",
 }
 CITY_CAR_PREFIX = {
     "austin":    "austin_car",
@@ -118,6 +119,7 @@ CITY_CAR_PREFIX = {
     "charlottesville": "charlottesville_car",
     "madison":   "madison_car",
     "boulder":   "boulder_car",
+    "katy":      "katy_car",
 }
 
 PRETTY = {
@@ -156,6 +158,7 @@ PRETTY = {
     "charlottesville": "Charlottesville, VA",
     "madison": "Madison, WI",
     "boulder": "Boulder, CO",
+    "katy":    "Katy + Fulshear, TX",
 }
 
 
