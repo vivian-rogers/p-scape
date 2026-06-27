@@ -215,17 +215,26 @@ def load_layer(npz_path: Path, layer_key: str) -> tuple[dict, dict]:
 
     # Write the 5 PNGs to disk under data/layers/. Filenames are stable per
     # (city, mode, radius, field) so a long-cache + ETag setup on the CDN
-    # keeps re-requests cheap.
+    # keeps re-requests cheap. We tag each URL with the first 8 hex chars
+    # of its content sha256 as ?v=… so any palette / data change forces
+    # browsers to refetch even though the filename is stable. Cheap and
+    # foolproof.
+    import hashlib
+
+    def _bust(url: str, png: bytes) -> str:
+        h = hashlib.sha256(png).hexdigest()[:8]
+        return f"{url}?v={h}"
+
     raster_urls: dict[str, str] = {}
     raster_bytes: dict[str, bytes] = {}
     for field, png in raster["rasters"].items():
         fname = f"{layer_key}__{field}.png"
         (LAYERS_DIR / fname).write_bytes(png)
-        raster_urls[field] = f"layers/{fname}"
+        raster_urls[field] = _bust(f"layers/{fname}", png)
         raster_bytes[field] = png
     data_fname = f"{layer_key}__data.png"
     (LAYERS_DIR / data_fname).write_bytes(raster["data_raster"])
-    data_raster_url = f"layers/{data_fname}"
+    data_raster_url = _bust(f"layers/{data_fname}", raster["data_raster"])
     raster_bytes["data"] = raster["data_raster"]
 
     # Lambda data PNG is optional: only emitted by rasterize() for layers
@@ -236,7 +245,8 @@ def load_layer(npz_path: Path, layer_key: str) -> tuple[dict, dict]:
     if "lambda_data_raster" in raster:
         lam_fname = f"{layer_key}__lambda_data.png"
         (LAYERS_DIR / lam_fname).write_bytes(raster["lambda_data_raster"])
-        lambda_data_raster_url = f"layers/{lam_fname}"
+        lambda_data_raster_url = _bust(f"layers/{lam_fname}",
+                                       raster["lambda_data_raster"])
         raster_bytes["lambda_data"] = raster["lambda_data_raster"]
 
     manifest_entry = {
