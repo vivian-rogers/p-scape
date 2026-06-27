@@ -71,6 +71,48 @@ def _build_palette_lut(n: int = 256) -> np.ndarray:
 PALETTE_LUT = _build_palette_lut()
 
 
+def _build_inferno_lut(n: int = 256) -> np.ndarray:
+    """Inferno colormap (perceptually uniform). t=0 → near-black; t=1 → pale yellow.
+
+    For λ_social the palette maps 'small λ (dense, lots of contact)' to the
+    LIGHT end and 'large λ (isolated)' to the DARK end, matching the user
+    intuition that bright = good signal, dark = absence/desert.
+    """
+    try:
+        import matplotlib
+        cm = matplotlib.colormaps["inferno"]
+        return (cm(np.linspace(0, 1, n))[:, :3] * 255).astype(np.uint8)
+    except Exception:
+        # Hard-coded 9-stop fallback (inferno key colors, linearly interpolated).
+        stops = [
+            (0.000, (0, 0, 4)),
+            (0.125, (40, 11, 84)),
+            (0.250, (101, 21, 110)),
+            (0.375, (159, 42, 99)),
+            (0.500, (213, 67, 76)),
+            (0.625, (244, 121, 33)),
+            (0.750, (252, 187, 39)),
+            (0.875, (252, 246, 113)),
+            (1.000, (252, 255, 164)),
+        ]
+        lut = np.zeros((n, 3), dtype=np.uint8)
+        for i in range(n):
+            t = i / (n - 1)
+            rgb = stops[-1][1]
+            for k in range(1, len(stops)):
+                t1, c1 = stops[k]
+                if t <= t1:
+                    t0, c0 = stops[k - 1]
+                    f = (t - t0) / (t1 - t0)
+                    rgb = tuple(int(c0[j] + f * (c1[j] - c0[j])) for j in range(3))
+                    break
+            lut[i] = rgb
+        return lut
+
+
+INFERNO_LUT = _build_inferno_lut()
+
+
 def _normalize_p(values: np.ndarray) -> np.ndarray:
     """For p fields: linear in [0, 2] → t ∈ [0, 1]."""
     return np.clip(values / 2.0, 0.0, 1.0)
@@ -206,11 +248,18 @@ def rasterize(d) -> dict:
         finite = np.isfinite(values)
         place = in_bounds & finite
 
+        # p / circuity use the diverging red-cream-blue palette anchored at
+        # the grid value. λ_social uses inferno on a log scale: small λ
+        # (dense contact) is rendered pale yellow, large λ (isolated) goes
+        # to dark purple/black. The user-facing legend in the explorer
+        # template must match this branch.
+        lut = INFERNO_LUT if kind == "lambda" else PALETTE_LUT
+
         img = np.zeros((n_rows, n_cols, 4), dtype=np.uint8)
         if place.any():
             t = normalize_fn(values[place])
             idx = np.clip((t * 255).astype(np.int32), 0, 255)
-            img[rows[place], cols[place], :3] = PALETTE_LUT[idx]
+            img[rows[place], cols[place], :3] = lut[idx]
             img[rows[place], cols[place], 3] = 255
         rasters[name] = _png_bytes(img)
 
