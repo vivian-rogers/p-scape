@@ -249,6 +249,15 @@ def load_layer(npz_path: Path, layer_key: str) -> tuple[dict, dict]:
                                        raster["lambda_data_raster"])
         raster_bytes["lambda_data"] = raster["lambda_data_raster"]
 
+    # Diffusive rate data PNG (analog of lambda_data_raster_url).
+    rate_data_raster_url = None
+    if "rate_data_raster" in raster:
+        rate_fname = f"{layer_key}__rate_data.png"
+        (LAYERS_DIR / rate_fname).write_bytes(raster["rate_data_raster"])
+        rate_data_raster_url = _bust(f"layers/{rate_fname}",
+                                     raster["rate_data_raster"])
+        raster_bytes["rate_data"] = raster["rate_data_raster"]
+
     manifest_entry = {
         "spacing_m": spacing,
         "radius_m": radius,
@@ -262,6 +271,8 @@ def load_layer(npz_path: Path, layer_key: str) -> tuple[dict, dict]:
     }
     if lambda_data_raster_url is not None:
         manifest_entry["lambda_data_raster_url"] = lambda_data_raster_url
+    if rate_data_raster_url is not None:
+        manifest_entry["rate_data_raster_url"] = rate_data_raster_url
     return manifest_entry, raster_bytes
 
 
@@ -422,11 +433,19 @@ def main() -> None:
     preload_key = f"{PRELOAD_CITY}__{PRELOAD_MODE}__{PRELOAD_RADIUS}"
     if preload_key in layers and preload_key in raster_bytes_cache:
         b = raster_bytes_cache[preload_key]
-        layers[preload_key]["raster_urls"] = {
-            field: png_to_data_uri(b[field])
-            for field in ("p_mean", "p_median", "circuity_mean", "circuity_median")
-        }
+        inlined = {}
+        for field in ("p_mean", "p_median", "circuity_mean", "circuity_median",
+                       "lambda_social", "diffusive_rate"):
+            if field in b:
+                inlined[field] = png_to_data_uri(b[field])
+        layers[preload_key]["raster_urls"] = inlined
         layers[preload_key]["data_raster_url"] = png_to_data_uri(b["data"])
+        # Inline the optional hover-lookup PNGs too so hover works without
+        # waiting on a fetch for the preloaded layer.
+        if "lambda_data" in b:
+            layers[preload_key]["lambda_data_raster_url"] = png_to_data_uri(b["lambda_data"])
+        if "rate_data" in b:
+            layers[preload_key]["rate_data_raster_url"] = png_to_data_uri(b["rate_data"])
         preload_bytes = sum(len(v) for v in b.values())
         print(f"  preloading {preload_key} ({preload_bytes // 1024} KB inline)")
     else:

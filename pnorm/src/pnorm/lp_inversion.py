@@ -54,6 +54,10 @@ low.  Acceptable for a back-of-envelope sanity check; not for the inverse map.
 Numerical inverse
 -----------------
 Composite Simpson over [0, π/2] at 4097 nodes is accurate to <1e-10 across p ∈ [0.3, 3].
+Below p = 0.1 the inverse table gets very steep (small ΔC ↔ large Δp) so fitted p's
+near the floor should be read as "extreme low-p, exact value untrustworthy" rather
+than as a precise estimate. We allow p_min as low as 0.01 because it covers the
+cul-de-sac / dead-end tail without floor-piling, even though the table is noisy there.
 We build a table {(p_i, M(p_i))} on a geometric grid and invert with a monotone-cubic
 (PCHIP) spline.  Per-cell inversion is then O(log N) lookups, microseconds each.
 """
@@ -92,7 +96,7 @@ def _build_inverse(p_min: float, p_max: float, n: int):
     return p_grid, C_grid, inv
 
 
-def p_of_circuity(C, p_min: float = 0.30, p_max: float = 3.0, n_table: int = 401):
+def p_of_circuity(C, p_min: float = 0.01, p_max: float = 3.0, n_table: int = 401):
     """Inverse of M: given mean circuity C, return effective p.
 
     Out-of-range inputs are clamped to [p_min, p_max].  NaN passes through.
@@ -174,7 +178,7 @@ def _build_quantile_inverse(q: float, p_min: float, p_max: float, n: int):
 
 
 def p_of_quantile_circuity(C, q: float,
-                           p_min: float = 0.30, p_max: float = 3.0,
+                           p_min: float = 0.01, p_max: float = 3.0,
                            n_table: int = 401):
     """Inverse of Q_q: given the q-th quantile of cell circuities, return p.
 
@@ -223,7 +227,7 @@ def _build_median_inverse(p_min: float, p_max: float, n: int):
     return p_grid, C_grid, inv
 
 
-def p_of_median_circuity(C, p_min: float = 0.30, p_max: float = 3.0, n_table: int = 401):
+def p_of_median_circuity(C, p_min: float = 0.01, p_max: float = 3.0, n_table: int = 401):
     """Inverse of Med: given median circuity C, return effective p.
 
     Out-of-range inputs are clamped to [p_min, p_max].  NaN passes through.

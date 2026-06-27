@@ -46,13 +46,14 @@ GRID_C = 4.0 / np.pi
 # Data-PNG quantization ranges. Out-of-range values clamp on encode.
 P_MIN, P_MAX = 0.0, 2.0
 C_MIN, C_MAX = 1.0, 3.0
-# λ_social = C(x) / (2·√n(x)), units = meters. Range [1, 300] m on a
-# log10 scale. λ ≤ 1 m clamps to the lightest inferno tone (truly
-# crowded — e.g. dense Tokyo); λ ≥ 300 m clamps to near-black (rural
-# fringe). The asymmetric upper bound at 300 m (rather than 1000 m)
-# devotes more of the dynamic range to the urban-suburban gradient
-# where most cells actually live.
+# Legacy: λ_social in meters (directed-MFP version, kept only so old npz
+# files don't break the build). New field is diffusive_rate_per_km below.
 LAMBDA_MIN_M, LAMBDA_MAX_M = 1.0, 300.0
+
+# Diffusive encounter rate per km walked = 1000·2π·n / (C²·ln(L²/σ²)).
+# Range [10^-0.6, 10^1.4] ≈ [0.25, 25] /km on a log10 scale. ≤0.25/km
+# clamps near-black (exurb), ≥25/km clamps pale yellow (Manhattan core).
+RATE_MIN_PER_KM, RATE_MAX_PER_KM = 10 ** -0.6, 10 ** 1.4
 
 
 def _build_palette_lut(n: int = 256) -> np.ndarray:
@@ -172,6 +173,29 @@ def _quantize_lambda(values: np.ndarray) -> np.ndarray:
     return np.clip(t, 0.0, 1.0).__mul__(255).astype(np.uint8)
 
 
+def _normalize_rate(values: np.ndarray) -> np.ndarray:
+    """Diffusive encounter rate (per km) → palette index t ∈ [0, 1].
+
+    Inferno convention here is the OPPOSITE of λ_social's: high rate
+    = dense contact = light yellow (t=1); low rate = isolated = dark
+    purple (t=0). Log10 scale over [RATE_MIN_PER_KM, RATE_MAX_PER_KM].
+    """
+    lo = np.log10(RATE_MIN_PER_KM)
+    hi = np.log10(RATE_MAX_PER_KM)
+    safe = np.clip(values, RATE_MIN_PER_KM, RATE_MAX_PER_KM)
+    t = (np.log10(safe) - lo) / (hi - lo)
+    return np.clip(t, 0.0, 1.0)
+
+
+def _quantize_rate(values: np.ndarray) -> np.ndarray:
+    """log10 [0.25, 25] /km → uint8."""
+    lo = np.log10(RATE_MIN_PER_KM)
+    hi = np.log10(RATE_MAX_PER_KM)
+    safe = np.clip(values, RATE_MIN_PER_KM, RATE_MAX_PER_KM)
+    t = (np.log10(safe) - lo) / (hi - lo)
+    return np.clip(t, 0.0, 1.0).__mul__(255).astype(np.uint8)
+
+
 def _png_bytes(arr_rgba: np.ndarray) -> bytes:
     """Encode an (H, W, 4) uint8 array as PNG bytes."""
     img = Image.fromarray(arr_rgba, "RGBA")
@@ -232,10 +256,9 @@ def rasterize(d) -> dict:
     ]
 
     # λ_social = C(x) / (2·√n(x)) — population MFP. Optional: only present
-    # in npz files that were post-processed against a population raster
-    # (currently Austin foot grids via Kontur). When absent, no lambda
-    # layer is emitted and the field doesn't appear in the explorer
-    # dropdown for that city.
+    # in npz files that were post-processed against a population raster.
+    # Kept for backwards-compatibility; the production-website field is
+    # `diffusive_rate_per_km` below.
     has_lambda = False
     lam_vals = None
     if hasattr(d, 'files') and "lambda_social_m" in d.files:
@@ -245,6 +268,21 @@ def rasterize(d) -> dict:
     if has_lambda:
         lam_vals = np.asarray(d["lambda_social_m"], dtype=np.float64)
         fields.append(("lambda_social", lam_vals, _normalize_lambda, "lambda"))
+
+    # Diffusive encounter rate per km walked — the post-Smoluchowski
+    # quantity 1000·2π·n(x) / (C_med(x)² · ln(L²/σ²)). Currently injected
+    # for Austin & NYC foot grids via inject_diffusive_rate.py. Same
+    # palette family as λ_social (inferno via "lambda" kind) but the
+    # value→color direction is inverted: HIGH rate = light yellow.
+    has_rate = False
+    rate_vals = None
+    if hasattr(d, 'files') and "diffusive_rate_per_km" in d.files:
+        has_rate = True
+    elif isinstance(d, dict) and "diffusive_rate_per_km" in d:
+        has_rate = True
+    if has_rate:
+        rate_vals = np.asarray(d["diffusive_rate_per_km"], dtype=np.float64)
+        fields.append(("diffusive_rate", rate_vals, _normalize_rate, "lambda"))
 
     rasters: dict[str, bytes] = {}
     stats: dict[str, dict] = {}
@@ -304,6 +342,16 @@ def rasterize(d) -> dict:
             lam_img[rows[lvalid], cols[lvalid], 3] = 255
         lambda_data_raster = _png_bytes(lam_img)
 
+    # Diffusive rate data PNG (for hover-value lookup).
+    rate_data_raster = None
+    if has_rate:
+        rvalid = in_bounds & np.isfinite(rate_vals)
+        rate_img = np.zeros((n_rows, n_cols, 4), dtype=np.uint8)
+        if rvalid.any():
+            rate_img[rows[rvalid], cols[rvalid], 0] = _quantize_rate(rate_vals[rvalid])
+            rate_img[rows[rvalid], cols[rvalid], 3] = 255
+        rate_data_raster = _png_bytes(rate_img)
+
     bounds = _bounds_from_utm(xy, spacing_m, utm_epsg)
 
     out = {
@@ -312,9 +360,12 @@ def rasterize(d) -> dict:
         "bounds": bounds,
         "raster_shape": [n_rows, n_cols],
         "ranges": {"p": [P_MIN, P_MAX], "c": [C_MIN, C_MAX],
-                   "lambda": [LAMBDA_MIN_M, LAMBDA_MAX_M]},
+                   "lambda": [LAMBDA_MIN_M, LAMBDA_MAX_M],
+                   "rate":   [RATE_MIN_PER_KM, RATE_MAX_PER_KM]},
         "stats": stats,
     }
     if lambda_data_raster is not None:
         out["lambda_data_raster"] = lambda_data_raster
+    if rate_data_raster is not None:
+        out["rate_data_raster"] = rate_data_raster
     return out

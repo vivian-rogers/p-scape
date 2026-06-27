@@ -763,7 +763,7 @@
           <option value="p">effective p (mean)</option>
           <option value="circuity_median">circuity (median)</option>
           <option value="circuity">circuity (mean)</option>
-          <option value="lambda">λ_social (m)</option>
+          <option value="rate">encounter rate (/km)</option>
         </select>
       </label>
       <label class="chip chip-slider" title="Layer opacity">
@@ -1519,14 +1519,16 @@ const FIELD_COPY = {
     anchors: ['2.5+', '1.27', '1.00'],
     chip: 'circuity (median)',
   },
-  lambda: {
-    name: 'λ_social (m)',
-    sub: 'Expected walking distance to the next person at local population density, ' +
-         'λ = C(x) / (2·√n(x)). Combines network circuity with GHS-POP 100 m population. ' +
-         'Low = dense urban (constant contact); high = exurban isolation. ' +
-         'Inferno palette on log10 [1, 300] m.',
-    anchors: ['300', '17', '1'],
-    chip: 'λ_social (m)',
+  rate: {
+    name: 'encounter rate (/km)',
+    sub: 'Expected number of random other people you\'d encounter per kilometer walked, ' +
+         'under a diffusive (random-walking) social-mixing model. ' +
+         '1/λ_diff = 2π·n(x) / (C_median(x)²·ln(L²/σ²)) — combines local population ' +
+         'density (GHS-POP 100 m) with the network\'s C² diffusion-penalty. ' +
+         'Inferno palette on log10 [0.25, 25] per km. Bright = constant incidental contact; ' +
+         'dark = isolated even by random search.',
+    anchors: ['0.25', '2.5', '25'],
+    chip: 'encounter rate (/km)',
   },
 };
 function applyFieldCopy(field) {
@@ -1537,8 +1539,8 @@ function applyFieldCopy(field) {
   document.getElementById('anchorM').textContent = c.anchors[1];
   document.getElementById('anchorR').textContent = c.anchors[2];
   document.getElementById('chipField').innerHTML = c.chip;
-  // p / circuity use the diverging palette; λ_social uses inferno.
-  paintLegend(field === 'lambda' ? infernoAt : paletteAt);
+  // p / circuity use the diverging palette; λ_social and rate use inferno.
+  paintLegend((field === 'lambda' || field === 'rate') ? infernoAt : paletteAt);
 }
 
 // ────────────── Map ──────────────
@@ -1699,6 +1701,7 @@ const RasterField = L.Layer.extend({
       case 'circuity':         return 'circuity_mean';
       case 'circuity_median':  return 'circuity_median';
       case 'lambda':           return 'lambda_social';
+      case 'rate':             return 'diffusive_rate';
       case 'p':
       default:                 return 'p_mean';
     }
@@ -1897,6 +1900,7 @@ function statsFieldKey(field) {
     case 'circuity':         return 'p_mean';
     case 'circuity_median':  return 'p_median';
     case 'lambda':           return 'lambda_social';
+    case 'rate':             return 'diffusive_rate';
     default:                 return 'p_mean';
   }
 }
@@ -1911,14 +1915,14 @@ function cityMedians(mode, radius, field) {
     if (!s || !isFinite(s.median)) return;
     out.push({ city: c, median: s.median });
   });
-  // For p / circuity: higher median = "better" (more grid-like). For
-  // λ_social: lower median = "better" (denser social contact). Flip
-  // the sort direction so #1 always reads as "most desirable" by the
-  // field's own logic.
+  // For p / circuity / rate: higher median = "better" (more grid-like,
+  // higher incidental encounter rate). For λ_social: lower median =
+  // "better" (denser social contact). Flip sort direction so #1 always
+  // reads as "most desirable" by the field's own logic.
   if (field === 'lambda') {
     out.sort((a,b) => a.median - b.median);  // lowest λ_social first
   } else {
-    out.sort((a,b) => b.median - a.median);  // most grid-like first
+    out.sort((a,b) => b.median - a.median);  // highest p / rate first
   }
   return out;
 }
@@ -2020,14 +2024,19 @@ function renderLayer(opts = {}) {
     return;
   }
 
-  let field = fieldPick.value;  // 'p' | 'p_median' | 'circuity' | 'circuity_median' | 'lambda'
-  // λ_social is opt-in per (city, mode, radius) — only present where the
-  // npz was post-processed against population. If user picked λ but this
-  // layer lacks it, fall back to p (median) so something renders, and
-  // flag it in the hero sub.
+  let field = fieldPick.value;  // 'p' | 'p_median' | 'circuity' | 'circuity_median' | 'lambda' | 'rate'
+  // λ_social / rate are opt-in per (city, mode, radius) — only present
+  // where the npz was post-processed against population. If user picked
+  // an unsupported one for this layer, fall back to p_median so the map
+  // still renders, and flag it in the hero sub.
   let lambdaUnavailable = false;
+  let rateUnavailable = false;
   if (field === 'lambda' && !(data.raster_urls && data.raster_urls.lambda_social)) {
     lambdaUnavailable = true;
+    field = 'p_median';
+  }
+  if (field === 'rate' && !(data.raster_urls && data.raster_urls.diffusive_rate)) {
+    rateUnavailable = true;
     field = 'p_median';
   }
   currentLayer = data;
@@ -2066,8 +2075,15 @@ function renderLayer(opts = {}) {
       desc = `Population mean-free-path: ~${Math.round(median)} m to the next person on foot.`;
       extra = `median ${Math.round(median)} m · p10 ${Math.round(p10)} m · p90 ${Math.round(p90)} m`;
     }
+    if (field === 'rate') {
+      desc = `Diffusive encounter rate: ~${median.toFixed(2)} people per km walked at random.`;
+      extra = `median ${median.toFixed(2)}/km · p10 ${p10.toFixed(2)}/km · p90 ${p90.toFixed(2)}/km`;
+    }
     if (lambdaUnavailable) {
       desc = `λ_social not yet computed for this city — showing effective p (median) instead. ` + desc;
+    }
+    if (rateUnavailable) {
+      desc = `Encounter rate not yet computed for this city — showing effective p (median) instead. ` + desc;
     }
     document.getElementById('heroSub').innerHTML =
       `${desc} <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mute)">· ${extra}</span>`;
@@ -2082,12 +2098,10 @@ function renderLayer(opts = {}) {
   if (myIdx >= 0) {
     let rankSuffix = 'most grid-like at this scale';
     if (field === 'lambda') {
-      // Smaller λ_social = denser social contact = "tightest"; cityMedians
-      // sorts by p (higher p = "better"), so for λ we'd want lower median
-      // = better rank. cityMedians.js currently doesn't know to flip for λ,
-      // so just describe it as "tightest social MFP" without #rank framing
-      // until the per-field rank ordering is plumbed through.
       rankSuffix = 'tightest social MFP at this scale';
+    }
+    if (field === 'rate') {
+      rankSuffix = 'highest incidental encounter rate at this scale';
     }
     document.getElementById('heroRank').innerHTML =
       `<span class="hero-rank-n">#${myIdx + 1} of ${ranks.length}</span> ${rankSuffix}`;
