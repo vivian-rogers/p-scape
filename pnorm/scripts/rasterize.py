@@ -51,9 +51,11 @@ C_MIN, C_MAX = 1.0, 3.0
 LAMBDA_MIN_M, LAMBDA_MAX_M = 1.0, 300.0
 
 # Diffusive encounter rate per km walked = 1000·2π·n / (C²·ln(L²/σ²)).
-# Range [10^-0.6, 10^1.4] ≈ [0.25, 25] /km on a log10 scale. ≤0.25/km
-# clamps near-black (exurb), ≥25/km clamps pale yellow (Manhattan core).
-RATE_MIN_PER_KM, RATE_MAX_PER_KM = 10 ** -0.6, 10 ** 1.4
+# Linear range [0, 25] /km. 0 = dark (no incidental contact), 25 = light
+# yellow (saturated dense). Linear means most of Austin/Brooklyn/Queens
+# read as fairly dark because typical values sit at ~1/km, with Manhattan
+# the only thing using the upper half of the palette.
+RATE_MIN_PER_KM, RATE_MAX_PER_KM = 0.0, 25.0
 
 
 def _build_palette_lut(n: int = 256) -> np.ndarray:
@@ -176,23 +178,18 @@ def _quantize_lambda(values: np.ndarray) -> np.ndarray:
 def _normalize_rate(values: np.ndarray) -> np.ndarray:
     """Diffusive encounter rate (per km) → palette index t ∈ [0, 1].
 
-    Inferno convention here is the OPPOSITE of λ_social's: high rate
-    = dense contact = light yellow (t=1); low rate = isolated = dark
-    purple (t=0). Log10 scale over [RATE_MIN_PER_KM, RATE_MAX_PER_KM].
+    Linear scale on [RATE_MIN_PER_KM, RATE_MAX_PER_KM]. High rate (dense
+    contact) → t=1 (light yellow); low rate → t=0 (dark purple).
     """
-    lo = np.log10(RATE_MIN_PER_KM)
-    hi = np.log10(RATE_MAX_PER_KM)
     safe = np.clip(values, RATE_MIN_PER_KM, RATE_MAX_PER_KM)
-    t = (np.log10(safe) - lo) / (hi - lo)
+    t = (safe - RATE_MIN_PER_KM) / (RATE_MAX_PER_KM - RATE_MIN_PER_KM)
     return np.clip(t, 0.0, 1.0)
 
 
 def _quantize_rate(values: np.ndarray) -> np.ndarray:
-    """log10 [0.25, 25] /km → uint8."""
-    lo = np.log10(RATE_MIN_PER_KM)
-    hi = np.log10(RATE_MAX_PER_KM)
+    """Linear [0, 25] /km → uint8."""
     safe = np.clip(values, RATE_MIN_PER_KM, RATE_MAX_PER_KM)
-    t = (np.log10(safe) - lo) / (hi - lo)
+    t = (safe - RATE_MIN_PER_KM) / (RATE_MAX_PER_KM - RATE_MIN_PER_KM)
     return np.clip(t, 0.0, 1.0).__mul__(255).astype(np.uint8)
 
 
