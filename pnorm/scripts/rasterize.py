@@ -46,12 +46,13 @@ GRID_C = 4.0 / np.pi
 # Data-PNG quantization ranges. Out-of-range values clamp on encode.
 P_MIN, P_MAX = 0.0, 2.0
 C_MIN, C_MAX = 1.0, 3.0
-# λ_social = C(x) / (2·√n(x)), units = meters. Range [4, 400] m on a
-# log10 scale — picked to give good contrast over the typical urban-bbox
-# distribution (Austin p10–p90 ≈ 10–150 m). λ≤4 m clamps to the lightest
-# inferno tone; λ≥400 m clamps to near-black. Saturated extremes are
-# visually flagged as "off-the-scale dense" / "off-the-scale isolated".
-LAMBDA_MIN_M, LAMBDA_MAX_M = 4.0, 400.0
+# λ_social = C(x) / (2·√n(x)), units = meters. Range [1, 300] m on a
+# log10 scale. λ ≤ 1 m clamps to the lightest inferno tone (truly
+# crowded — e.g. dense Tokyo); λ ≥ 300 m clamps to near-black (rural
+# fringe). The asymmetric upper bound at 300 m (rather than 1000 m)
+# devotes more of the dynamic range to the urban-suburban gradient
+# where most cells actually live.
+LAMBDA_MIN_M, LAMBDA_MAX_M = 1.0, 300.0
 
 
 def _build_palette_lut(n: int = 256) -> np.ndarray:
