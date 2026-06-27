@@ -228,6 +228,17 @@ def load_layer(npz_path: Path, layer_key: str) -> tuple[dict, dict]:
     data_raster_url = f"layers/{data_fname}"
     raster_bytes["data"] = raster["data_raster"]
 
+    # Lambda data PNG is optional: only emitted by rasterize() for layers
+    # that have a lambda_social_m field in the npz. Manifest gets a
+    # separate `lambda_data_raster_url` entry when present so the explorer
+    # can decide whether the 'λ_social' option appears in the field dropdown.
+    lambda_data_raster_url = None
+    if "lambda_data_raster" in raster:
+        lam_fname = f"{layer_key}__lambda_data.png"
+        (LAYERS_DIR / lam_fname).write_bytes(raster["lambda_data_raster"])
+        lambda_data_raster_url = f"layers/{lam_fname}"
+        raster_bytes["lambda_data"] = raster["lambda_data_raster"]
+
     manifest_entry = {
         "spacing_m": spacing,
         "radius_m": radius,
@@ -239,6 +250,8 @@ def load_layer(npz_path: Path, layer_key: str) -> tuple[dict, dict]:
         "ranges": raster["ranges"],
         "stats": raster["stats"],
     }
+    if lambda_data_raster_url is not None:
+        manifest_entry["lambda_data_raster_url"] = lambda_data_raster_url
     return manifest_entry, raster_bytes
 
 

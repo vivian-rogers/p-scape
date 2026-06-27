@@ -763,6 +763,7 @@
           <option value="p">effective p (mean)</option>
           <option value="circuity_median">circuity (median)</option>
           <option value="circuity">circuity (mean)</option>
+          <option value="lambda">λ_social (m)</option>
         </select>
       </label>
       <label class="chip chip-slider" title="Layer opacity">
@@ -1494,6 +1495,14 @@ const FIELD_COPY = {
     anchors: ['2.5+', '1.27', '1.00'],
     chip: 'circuity (median)',
   },
+  lambda: {
+    name: 'λ_social (m)',
+    sub: 'Expected walking distance to the next person at local population density, ' +
+         'λ = C(x) / (2·√n(x)). Combines network circuity with Kontur 22 m hex population. ' +
+         'Low = dense urban (constant contact); high = exurban isolation. Log-scaled palette.',
+    anchors: ['1000', '32', '1'],
+    chip: 'λ_social (m)',
+  },
 };
 function applyFieldCopy(field) {
   const c = FIELD_COPY[field];
@@ -1662,6 +1671,7 @@ const RasterField = L.Layer.extend({
       case 'p_median':         return 'p_median';
       case 'circuity':         return 'circuity_mean';
       case 'circuity_median':  return 'circuity_median';
+      case 'lambda':           return 'lambda_social';
       case 'p':
       default:                 return 'p_mean';
     }
@@ -1859,6 +1869,7 @@ function statsFieldKey(field) {
     case 'p_median':         return 'p_median';
     case 'circuity':         return 'p_mean';
     case 'circuity_median':  return 'p_median';
+    case 'lambda':           return 'lambda_social';
     default:                 return 'p_mean';
   }
 }
@@ -1873,7 +1884,15 @@ function cityMedians(mode, radius, field) {
     if (!s || !isFinite(s.median)) return;
     out.push({ city: c, median: s.median });
   });
-  out.sort((a,b) => b.median - a.median);  // most grid-like first
+  // For p / circuity: higher median = "better" (more grid-like). For
+  // λ_social: lower median = "better" (denser social contact). Flip
+  // the sort direction so #1 always reads as "most desirable" by the
+  // field's own logic.
+  if (field === 'lambda') {
+    out.sort((a,b) => a.median - b.median);  // lowest λ_social first
+  } else {
+    out.sort((a,b) => b.median - a.median);  // most grid-like first
+  }
   return out;
 }
 
@@ -1974,7 +1993,16 @@ function renderLayer(opts = {}) {
     return;
   }
 
-  const field = fieldPick.value;  // 'p' | 'p_median' | 'circuity' | 'circuity_median'
+  let field = fieldPick.value;  // 'p' | 'p_median' | 'circuity' | 'circuity_median' | 'lambda'
+  // λ_social is opt-in per (city, mode, radius) — only present where the
+  // npz was post-processed against population. If user picked λ but this
+  // layer lacks it, fall back to p (median) so something renders, and
+  // flag it in the hero sub.
+  let lambdaUnavailable = false;
+  if (field === 'lambda' && !(data.raster_urls && data.raster_urls.lambda_social)) {
+    lambdaUnavailable = true;
+    field = 'p_median';
+  }
   currentLayer = data;
   const sKey = statsFieldKey(field);
   currentCdf = data.stats && data.stats[sKey] ? data.stats[sKey].cdf : null;
@@ -2002,19 +2030,40 @@ function renderLayer(opts = {}) {
   applyOpacity();
 
   // Hero stats from the precomputed sidecar — no cell-array iteration.
-  const stats = data.stats[sKey];
-  const median = stats.median, p10 = stats.p10, p90 = stats.p90;
-  const desc = describeCity(median);
-  document.getElementById('heroSub').innerHTML =
-    `${desc} <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mute)">· median p ${median.toFixed(2)} · p10 ${p10.toFixed(2)} · p90 ${p90.toFixed(2)}</span>`;
+  const stats = data.stats && data.stats[sKey];
+  if (stats) {
+    const median = stats.median, p10 = stats.p10, p90 = stats.p90;
+    let desc = describeCity(median);
+    let extra = `median p ${median.toFixed(2)} · p10 ${p10.toFixed(2)} · p90 ${p90.toFixed(2)}`;
+    if (field === 'lambda') {
+      desc = `Population mean-free-path: ~${Math.round(median)} m to the next person on foot.`;
+      extra = `median ${Math.round(median)} m · p10 ${Math.round(p10)} m · p90 ${Math.round(p90)} m`;
+    }
+    if (lambdaUnavailable) {
+      desc = `λ_social not yet computed for this city — showing effective p (median) instead. ` + desc;
+    }
+    document.getElementById('heroSub').innerHTML =
+      `${desc} <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mute)">· ${extra}</span>`;
+  } else {
+    document.getElementById('heroSub').textContent = '';
+  }
 
   // Rank within current cohort, using the same p flavor (mean / median) the
   // user is looking at on the map.
   const ranks = cityMedians(mode, r, field);
   const myIdx = ranks.findIndex(x => x.city === city);
   if (myIdx >= 0) {
+    let rankSuffix = 'most grid-like at this scale';
+    if (field === 'lambda') {
+      // Smaller λ_social = denser social contact = "tightest"; cityMedians
+      // sorts by p (higher p = "better"), so for λ we'd want lower median
+      // = better rank. cityMedians.js currently doesn't know to flip for λ,
+      // so just describe it as "tightest social MFP" without #rank framing
+      // until the per-field rank ordering is plumbed through.
+      rankSuffix = 'tightest social MFP at this scale';
+    }
     document.getElementById('heroRank').innerHTML =
-      `<span class="hero-rank-n">#${myIdx + 1} of ${ranks.length}</span> most grid-like at this scale`;
+      `<span class="hero-rank-n">#${myIdx + 1} of ${ranks.length}</span> ${rankSuffix}`;
   } else {
     document.getElementById('heroRank').innerHTML = '';
   }

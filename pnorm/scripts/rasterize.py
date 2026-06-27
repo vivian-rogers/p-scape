@@ -46,6 +46,9 @@ GRID_C = 4.0 / np.pi
 # Data-PNG quantization ranges. Out-of-range values clamp on encode.
 P_MIN, P_MAX = 0.0, 2.0
 C_MIN, C_MAX = 1.0, 3.0
+# λ_social = C(x) / (2·√n(x)), units = meters. Range [1, 1000] m on a
+# log10 scale: dense Manhattan ≈ 5 m, suburban ≈ 50 m, exurban > 500 m.
+LAMBDA_MIN_M, LAMBDA_MAX_M = 1.0, 1000.0
 
 
 def _build_palette_lut(n: int = 256) -> np.ndarray:
@@ -95,6 +98,32 @@ def _quantize_p(values: np.ndarray) -> np.ndarray:
 
 def _quantize_c(values: np.ndarray) -> np.ndarray:
     return np.clip((values - C_MIN) / (C_MAX - C_MIN), 0.0, 1.0).__mul__(255).astype(np.uint8)
+
+
+def _normalize_lambda(values: np.ndarray) -> np.ndarray:
+    """λ_social on a log10 [1, 1000] m scale; small λ → 1 (warm), large → 0 (cool).
+
+    Matches the diverging-palette convention used for p_eff: low λ_social
+    (dense, lots of contact) lands on the cool/blue end (analog to high p,
+    grid-like), high λ_social (isolated) lands on the warm/red end. So we
+    map *high* values to the LOW end of the palette index so the palette
+    interpretation stays 'red = bad, blue = good'.
+    """
+    lo = np.log10(LAMBDA_MIN_M)
+    hi = np.log10(LAMBDA_MAX_M)
+    safe = np.clip(values, LAMBDA_MIN_M, LAMBDA_MAX_M)
+    # 1 - log_ratio so dense → 1.0 (cool/grid end), isolated → 0.0 (warm/sprawl end)
+    t = 1.0 - (np.log10(safe) - lo) / (hi - lo)
+    return np.clip(t, 0.0, 1.0)
+
+
+def _quantize_lambda(values: np.ndarray) -> np.ndarray:
+    """log10 [1, 1000] m → uint8. Recover via 10**(lo + (b/255) * (hi-lo))."""
+    lo = np.log10(LAMBDA_MIN_M)
+    hi = np.log10(LAMBDA_MAX_M)
+    safe = np.clip(values, LAMBDA_MIN_M, LAMBDA_MAX_M)
+    t = (np.log10(safe) - lo) / (hi - lo)
+    return np.clip(t, 0.0, 1.0).__mul__(255).astype(np.uint8)
 
 
 def _png_bytes(arr_rgba: np.ndarray) -> bytes:
@@ -150,11 +179,26 @@ def rasterize(d) -> dict:
     c_median = np.asarray(d["median_circuity"], dtype=np.float64)
 
     fields = [
-        ("p_mean",          p_mean,   _normalize_p, "p"),
-        ("p_median",        p_median, _normalize_p, "p"),
-        ("circuity_mean",   c_mean,   _normalize_c, "c"),
-        ("circuity_median", c_median, _normalize_c, "c"),
+        ("p_mean",          p_mean,   _normalize_p,      "p"),
+        ("p_median",        p_median, _normalize_p,      "p"),
+        ("circuity_mean",   c_mean,   _normalize_c,      "c"),
+        ("circuity_median", c_median, _normalize_c,      "c"),
     ]
+
+    # λ_social = C(x) / (2·√n(x)) — population MFP. Optional: only present
+    # in npz files that were post-processed against a population raster
+    # (currently Austin foot grids via Kontur). When absent, no lambda
+    # layer is emitted and the field doesn't appear in the explorer
+    # dropdown for that city.
+    has_lambda = False
+    lam_vals = None
+    if hasattr(d, 'files') and "lambda_social_m" in d.files:
+        has_lambda = True
+    elif isinstance(d, dict) and "lambda_social_m" in d:
+        has_lambda = True
+    if has_lambda:
+        lam_vals = np.asarray(d["lambda_social_m"], dtype=np.float64)
+        fields.append(("lambda_social", lam_vals, _normalize_lambda, "lambda"))
 
     rasters: dict[str, bytes] = {}
     stats: dict[str, dict] = {}
@@ -195,13 +239,29 @@ def rasterize(d) -> dict:
         data[rows[valid], cols[valid], 3] = 255
     data_raster = _png_bytes(data)
 
+    # Lambda data PNG (optional, separate from the main data PNG because
+    # all 4 RGBA channels are already in use). R = log10(λ_m) on [0, 3]
+    # quantized to uint8, A = validity.
+    lambda_data_raster = None
+    if has_lambda:
+        lvalid = in_bounds & np.isfinite(lam_vals)
+        lam_img = np.zeros((n_rows, n_cols, 4), dtype=np.uint8)
+        if lvalid.any():
+            lam_img[rows[lvalid], cols[lvalid], 0] = _quantize_lambda(lam_vals[lvalid])
+            lam_img[rows[lvalid], cols[lvalid], 3] = 255
+        lambda_data_raster = _png_bytes(lam_img)
+
     bounds = _bounds_from_utm(xy, spacing_m, utm_epsg)
 
-    return {
+    out = {
         "rasters": rasters,           # {field: PNG bytes}
         "data_raster": data_raster,   # PNG bytes
         "bounds": bounds,
         "raster_shape": [n_rows, n_cols],
-        "ranges": {"p": [P_MIN, P_MAX], "c": [C_MIN, C_MAX]},
+        "ranges": {"p": [P_MIN, P_MAX], "c": [C_MIN, C_MAX],
+                   "lambda": [LAMBDA_MIN_M, LAMBDA_MAX_M]},
         "stats": stats,
     }
+    if lambda_data_raster is not None:
+        out["lambda_data_raster"] = lambda_data_raster
+    return out
