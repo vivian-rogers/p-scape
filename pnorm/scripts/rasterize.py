@@ -55,7 +55,7 @@ LAMBDA_MIN_M, LAMBDA_MAX_M = 1.0, 300.0
 # yellow (saturated dense). Linear means most of Austin/Brooklyn/Queens
 # read as fairly dark because typical values sit at ~1/km, with Manhattan
 # the only thing using the upper half of the palette.
-RATE_MIN_PER_KM, RATE_MAX_PER_KM = 0.0, 25.0
+RATE_MIN_PER_KM, RATE_MAX_PER_KM = 0.0, 15.0
 
 
 def _build_palette_lut(n: int = 256) -> np.ndarray:
