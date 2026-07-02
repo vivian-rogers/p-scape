@@ -402,7 +402,8 @@ def main() -> None:
                     cities_present.append(city)
                     any_layer = True
 
-    cities_present = sorted(set(cities_present), key=lambda c: list(CITY_FOOT_PREFIX).index(c))
+    # Alphabetical by display name so the website city dropdown reads A→Z.
+    cities_present = sorted(set(cities_present), key=lambda c: PRETTY.get(c, c).lower())
 
     # Quick reporting + per-city radii lists
     radii_for = {}
