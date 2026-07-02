@@ -82,6 +82,16 @@ CITY_FOOT_PREFIX = {
     "madison":   "madison_foot",
     "boulder":   "boulder_foot",
     "katy":      "katy_foot",
+    "fredericksburg": "fredericksburg_foot",
+    "bastrop":   "bastrop_foot",
+    "fairplay":  "fairplay_foot",
+    "freiburg":  "freiburg_foot",
+    "rotterdam": "rotterdam_foot",
+    "berlin":    "berlin_foot",
+    "prague":    "prague_foot",
+    "saint_malo": "saint_malo_foot",
+    "le_havre":  "le_havre_foot",
+    "nuremberg": "nuremberg_foot",
 }
 CITY_CAR_PREFIX = {
     "austin":    "austin_car",
@@ -120,6 +130,16 @@ CITY_CAR_PREFIX = {
     "madison":   "madison_car",
     "boulder":   "boulder_car",
     "katy":      "katy_car",
+    "fredericksburg": "fredericksburg_car",
+    "bastrop":   "bastrop_car",
+    "fairplay":  "fairplay_car",
+    "freiburg":  "freiburg_car",
+    "rotterdam": "rotterdam_car",
+    "berlin":    "berlin_car",
+    "prague":    "prague_car",
+    "saint_malo": "saint_malo_car",
+    "le_havre":  "le_havre_car",
+    "nuremberg": "nuremberg_car",
 }
 
 PRETTY = {
@@ -159,6 +179,16 @@ PRETTY = {
     "madison": "Madison, WI",
     "boulder": "Boulder, CO",
     "katy":    "Katy + Fulshear, TX",
+    "fredericksburg": "Fredericksburg, TX",
+    "bastrop": "Bastrop, TX",
+    "fairplay": "Fairplay, CO",
+    "freiburg": "Freiburg",
+    "rotterdam": "Rotterdam",
+    "berlin": "Berlin",
+    "prague": "Prague",
+    "saint_malo": "Saint-Malo",
+    "le_havre": "Le Havre",
+    "nuremberg": "Nuremberg",
 }
 
 

@@ -504,6 +504,112 @@ CITIES: dict[str, City] = {
         center=(40.0190, -105.2747),  # Pearl Street Mall
         default_zoom=13,
     ),
+    # ── Overnight batch 2026-07-02: wishlist towns + H4 WWII A/B examples ──
+    "fredericksburg": City(
+        key="fredericksburg",
+        name="Fredericksburg, TX",
+        # German-settled Hill Country town; historic grid platted 1846.
+        bbox=(-98.92, 30.24, -98.83, 30.31),
+        utm_epsg=32614,  # UTM 14N
+        geofabrik_region="north-america/us/texas",
+        center=(30.2752, -98.8720),
+        default_zoom=13,
+    ),
+    "bastrop": City(
+        key="bastrop",
+        name="Bastrop, TX",
+        # Historic town SE of Austin; old grid + Colorado River + newer sprawl.
+        bbox=(-97.35, 30.08, -97.28, 30.14),
+        utm_epsg=32614,  # UTM 14N
+        geofabrik_region="north-america/us/texas",
+        center=(30.1105, -97.3153),
+        default_zoom=13,
+    ),
+    "fairplay": City(
+        key="fairplay",
+        name="Fairplay, CO",
+        # Tiny high-altitude mountain town (South Park basin); sparse extreme.
+        bbox=(-106.03, 39.20, -105.97, 39.25),
+        utm_epsg=32613,  # UTM 13N
+        geofabrik_region="north-america/us/colorado",
+        center=(39.2247, -106.0023),
+        default_zoom=14,
+    ),
+    "freiburg": City(
+        key="freiburg",
+        name="Freiburg im Breisgau",
+        # H4 arm A (faithful): Altstadt faithfully reconstructed post-WWII.
+        bbox=(7.78, 47.96, 7.90, 48.03),
+        utm_epsg=32632,  # UTM 32N
+        geofabrik_region="europe/germany/baden-wuerttemberg",
+        center=(47.9959, 7.8494),  # Münsterplatz
+        default_zoom=13,
+    ),
+    "rotterdam": City(
+        key="rotterdam",
+        name="Rotterdam",
+        # H4 arm B (modernist): center flattened May 1940, rebuilt modern —
+        # the archetype. Pairs with catalog Amsterdam (spared control).
+        bbox=(4.42, 51.88, 4.56, 51.96),
+        utm_epsg=32631,  # UTM 31N
+        geofabrik_region="europe/netherlands",
+        center=(51.9225, 4.4792),
+        default_zoom=12,
+    ),
+    "prague": City(
+        key="prague",
+        name="Prague",
+        # Wishlist + H4 spared control: medieval organic core largely intact.
+        bbox=(14.36, 50.03, 14.52, 50.12),
+        utm_epsg=32633,  # UTM 33N
+        geofabrik_region="europe/czech-republic",
+        center=(50.0875, 14.4213),  # Old Town Square
+        default_zoom=12,
+    ),
+    "berlin": City(
+        key="berlin",
+        name="Berlin",
+        # Wishlist + H4: heavily destroyed, rebuilt mixed (West modern /
+        # East Stalinist Karl-Marx-Allee). Central Berlin bbox.
+        bbox=(13.30, 52.47, 13.50, 52.56),
+        utm_epsg=32633,  # UTM 33N
+        geofabrik_region="europe/germany/berlin",
+        center=(52.5200, 13.4050),
+        default_zoom=12,
+    ),
+    "saint_malo": City(
+        key="saint_malo",
+        name="Saint-Malo",
+        # H4 arm A (faithful): walled city ~80% destroyed Aug 1944, rebuilt
+        # stone-by-stone in historic style. Pairs with Le Havre.
+        bbox=(-2.06, 48.62, -1.95, 48.68),
+        utm_epsg=32630,  # UTM 30N
+        geofabrik_region="europe/france/bretagne",
+        center=(48.6493, -2.0257),  # Intra-Muros
+        default_zoom=13,
+    ),
+    "le_havre": City(
+        key="le_havre",
+        name="Le Havre",
+        # H4 arm B (modernist): ~80% destroyed 1944, rebuilt by Perret as a
+        # reinforced-concrete grid; UNESCO. Pairs with Saint-Malo.
+        bbox=(0.05, 49.46, 0.19, 49.53),
+        utm_epsg=32631,  # UTM 31N
+        geofabrik_region="europe/france/haute-normandie",
+        center=(49.4938, 0.1077),
+        default_zoom=12,
+    ),
+    "nuremberg": City(
+        key="nuremberg",
+        name="Nuremberg",
+        # H4 arm A (faithful): ~90% of Altstadt destroyed, medieval plan kept
+        # and fabric reconstructed. Pairs with modernist Kassel (not yet built).
+        bbox=(11.02, 49.42, 11.14, 49.49),
+        utm_epsg=32632,  # UTM 32N
+        geofabrik_region="europe/germany/bayern",
+        center=(49.4540, 11.0775),  # Hauptmarkt
+        default_zoom=12,
+    ),
 }
 
 
