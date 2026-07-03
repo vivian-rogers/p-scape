@@ -150,7 +150,7 @@
   }
   .chip-share:hover { background: #1f1f1f; }
   .chip-icon { background: var(--paper-2); padding: 6px 9px; }
-  .chip-help { background: var(--paper-2); gap: 6px; }
+  .chip-help { background: var(--paper-2); gap: 6px; flex-shrink: 0; }
   .chip-help:hover { background: var(--paper-3); border-color: var(--mute); }
   .chip-help-q {
     display: flex; align-items: center; justify-content: center;
@@ -158,6 +158,18 @@
     border-radius: 50%;
     background: var(--ink); color: var(--paper);
     font-size: 11px; font-weight: 700;
+  }
+  /* Compact-topbar ladder: keep everything on one row down to laptop
+     widths by shedding the most redundant pixels first. */
+  @media (max-width: 1680px) {
+    .chips { gap: 6px; }
+    .chip { padding: 6px 10px; }
+    .chip-slider .chip-label { display: none; }  /* slider + % is self-explanatory; title attr remains */
+    .chip-value { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Tagline yields in the same tier: long city names (e.g. "East Bay
+       (Berkeley + Oakland)") need the slack even at 1500-1680. The pitch
+       lives in the intro + <title>; "What is this?" stays. */
+    .brand-tagline { display: none; }
   }
   @media (max-width: 720px) {
     #topbar { padding: 10px 12px; grid-template-columns: auto 1fr; gap: 10px; }
@@ -740,6 +752,7 @@
         <div class="brand-name">p-scape</div>
       </div>
       <div class="brand-tagline">A field guide to street geometry</div>
+      <button class="chip chip-help" id="tourBtn" title="Replay the intro" aria-label="What is this? Replay the intro"><span class="chip-help-q">?</span><span class="chip-help-label">What is this?</span></button>
       <a class="brand-learn" id="learnMore" href="https://jazzloafing.substack.com/p/manhattan-outperforms-the-taxicab" target="_blank" rel="noopener">Learn more →</a>
     </div>
     <div></div>
@@ -782,7 +795,6 @@
         <input class="chip-range" id="opacityPick" type="range" min="0" max="100" value="70">
         <span class="chip-value chip-value-narrow" id="chipOpacity">70%</span>
       </label>
-      <button class="chip chip-help" id="tourBtn" title="Replay the intro" aria-label="What is this? Replay the intro"><span class="chip-help-q">?</span><span class="chip-help-label">What is this?</span></button>
       <button class="chip chip-share" id="shareBtn">↗ Share</button>
     </div>
   </header>

@@ -12,6 +12,7 @@ Append-only. Newest on top. Same format as parent.
 - Applied identically to `scripts/explorer_template.html` and the committed `data/explorer.html` (raw npz are no longer in the repo, so a local rebuild would have emptied the payload; hand-syncing both keeps template ↔ artifact consistent).
 - The Substack "Learn more →" link is untouched, per Adam.
 - Verified in a served browser session: intro shows on first visit → Skip sets `pscape_seen` → `?` button reopens at slide 01.
+- Follow-up after Adam's review: the labeled button overflowed the topbar at laptop widths, wrapping Share onto a lonely second row. Moved the help button into the brand cluster (next to "Learn more →" — the "explain yourself" corner) and added a compact-topbar tier at ≤1680 px: tighter chip padding/gaps, `OPACITY` word hidden (slider + % + tooltip suffice), city names ellipsize at 150 px, tagline hidden (returns >1680 px). Stress-tested single-row layout against the longest catalog name ("East Bay (Berkeley + Oakland)") at 1512 px.
 
 **Next:**
 - More end-user polish fixes from Adam's review pass (this was the first).
