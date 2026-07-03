@@ -610,6 +610,19 @@ CITIES: dict[str, City] = {
         center=(49.4540, 11.0775),  # Hauptmarkt
         default_zoom=12,
     ),
+    "lafayette": City(
+        key="lafayette",
+        name="Lafayette–West Lafayette, IN",
+        # Twin cities on the Wabash; West Lafayette = Purdue campus.
+        # Downtown Lafayette grid + Purdue + newer sprawl out east/west.
+        bbox=(-86.95, 40.38, -86.82, 40.47),
+        utm_epsg=32616,  # UTM 16N
+        # Crop from the on-disk full-US extract (data/us-latest.osm.pbf) so the
+        # build needs no download; the per-state indiana extract also works.
+        geofabrik_region="north-america/us",
+        center=(40.4167, -86.8753),  # downtown Lafayette
+        default_zoom=12,
+    ),
 }
 
 

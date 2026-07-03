@@ -92,6 +92,7 @@ CITY_FOOT_PREFIX = {
     "saint_malo": "saint_malo_foot",
     "le_havre":  "le_havre_foot",
     "nuremberg": "nuremberg_foot",
+    "lafayette": "lafayette_foot",
 }
 CITY_CAR_PREFIX = {
     "austin":    "austin_car",
@@ -140,6 +141,7 @@ CITY_CAR_PREFIX = {
     "saint_malo": "saint_malo_car",
     "le_havre":  "le_havre_car",
     "nuremberg": "nuremberg_car",
+    "lafayette": "lafayette_car",
 }
 
 PRETTY = {
@@ -189,6 +191,7 @@ PRETTY = {
     "saint_malo": "Saint-Malo",
     "le_havre": "Le Havre",
     "nuremberg": "Nuremberg",
+    "lafayette": "Lafayette–West Lafayette, IN",
 }
 
 
