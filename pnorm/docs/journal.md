@@ -4,6 +4,27 @@ Append-only. Newest on top. Same format as parent.
 
 ---
 
+## 2026-07-02 (later) — Mobile audit: findings + fix plan (NOT yet implemented)
+**Who:** Adam + Claude Code (Opus 4.8)
+**Context:** p-scape will mostly be shared on Twitter → iPhone traffic. Audited at 390×844 via same-origin iframe sim (Chrome won't resize below ~500px; trick: mount `<iframe src="/explorer.html" style="width:390px;height:844px">` — media queries respond to iframe viewport). Serve `pnorm/data/` via `python3 -m http.server 8899` first.
+
+**Findings (ranked):**
+1. **No touch cell-inspection.** Lookup binds `mousemove` only (template ~line 1681, inside RasterField's `_mouseHandler`). On phones there is no way to query a cell — the core shareable interaction is dead.
+2. **"HOVER A CELL" idle card** permanently covers ~40% of visible map on phones and overlaps the hero card. Instructions reference an interaction phones don't have.
+3. **Intro traps mobile first-timers:** `.intro-card` is `overflow-y:auto` but Skip/Next footer sits ~400px below fold, zero scroll affordance. Wall of math, no visible way forward.
+4. **Topbar = 143px on phones** (brand + 3 wrapped chip rows). Net visible map ≈ 420/828px.
+Works fine: Leaflet touch pan/zoom, corner hint auto-hides, no horizontal overflow.
+
+**Agreed fix plan (Adam approved, order matters):**
+1. *Sticky intro footer* — make `.intro-card` a flex column; slides area scrolls, `.intro-foot` pinned. Trivial CSS.
+2. *Tap-to-inspect* — on `matchMedia('(hover: none)')`, bind map `click` to the same cell-lookup as `_mouseHandler`; idle copy → "Tap any block".
+3. *Hover card → on-demand bottom card on phones* — hidden until tap, compact, dismissible.
+4. *Slim phone topbar* — hide chip-label words (CITY/MODE/…) ≤720px; target 2 rows.
+
+**Gotchas for the implementer:** every change must be applied BOTH to `scripts/explorer_template.html` and by hand to the committed `data/explorer.html` (raw npz not in repo; local rebuild impossible — the build guardrail will refuse). Line numbers match between the two files up to the payload line. Verify via the iframe sim; localStorage key `pscape_seen` gates the intro; `?tour=1` force-shows it.
+
+---
+
 ## 2026-07-02 — Discoverable "What is this?" button to replay the intro
 **Who:** Adam + Claude Code (Opus 4.8)
 **Done:**
