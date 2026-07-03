@@ -4,6 +4,23 @@ Append-only. Newest on top. Same format as parent.
 
 ---
 
+## 2026-07-02 — Discoverable "What is this?" button to replay the intro
+**Who:** Adam + Claude Code (Opus 4.8)
+**Done:**
+- The intro/tour was effectively unrecoverable for real users after first dismissal: the only affordances were the cryptic `↶` chip (reads as "undo", label only on hover) and the `?tour=1` query param. Adam — who co-built the thing — didn't know a reopen path existed, which settles the discoverability question.
+- Replaced the `↶` chip with a labeled `? What is this?` button (circled-? glyph + text). Kept `id="tourBtn"` so all existing wiring (slide reset, backdrop dismiss, Escape, localStorage) is untouched. On ≤720 px the text hides and the chip collapses to the circled `?` alone.
+- Applied identically to `scripts/explorer_template.html` and the committed `data/explorer.html` (raw npz are no longer in the repo, so a local rebuild would have emptied the payload; hand-syncing both keeps template ↔ artifact consistent).
+- The Substack "Learn more →" link is untouched, per Adam.
+- Verified in a served browser session: intro shows on first visit → Skip sets `pscape_seen` → `?` button reopens at slide 01.
+
+**Next:**
+- More end-user polish fixes from Adam's review pass (this was the first).
+
+**Blocked / open:**
+- Local rebuilds of the explorer are no longer possible without the npz set (guardrail correctly refuses an empty payload). Fine for template edits synced by hand; anything payload-shaped needs Vivian's data or a re-run.
+
+---
+
 ## 2026-05-06 — "Isochrome" redesign via Claude Design; build script reads external template
 **Who:** Adam + Claude Code (Opus 4.7)
 **Done:**

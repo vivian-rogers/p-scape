@@ -150,6 +150,15 @@
   }
   .chip-share:hover { background: #1f1f1f; }
   .chip-icon { background: var(--paper-2); padding: 6px 9px; }
+  .chip-help { background: var(--paper-2); gap: 6px; }
+  .chip-help:hover { background: var(--paper-3); border-color: var(--mute); }
+  .chip-help-q {
+    display: flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--ink); color: var(--paper);
+    font-size: 11px; font-weight: 700;
+  }
   @media (max-width: 720px) {
     #topbar { padding: 10px 12px; grid-template-columns: auto 1fr; gap: 10px; }
     .brand-name { font-size: 16px; }
@@ -160,6 +169,8 @@
              flex-wrap: wrap; justify-content: flex-start;
              row-gap: 6px; }
     .chip { flex-shrink: 0; }
+    /* Keep the help chip compact on phones: circled ? only */
+    .chip-help-label { display: none; }
   }
 
   /* ───────────── Stage ───────────── */
@@ -771,7 +782,7 @@
         <input class="chip-range" id="opacityPick" type="range" min="0" max="100" value="70">
         <span class="chip-value chip-value-narrow" id="chipOpacity">70%</span>
       </label>
-      <button class="chip chip-icon" id="tourBtn" title="Take the tour">↶</button>
+      <button class="chip chip-help" id="tourBtn" title="Replay the intro" aria-label="What is this? Replay the intro"><span class="chip-help-q">?</span><span class="chip-help-label">What is this?</span></button>
       <button class="chip chip-share" id="shareBtn">↗ Share</button>
     </div>
   </header>
