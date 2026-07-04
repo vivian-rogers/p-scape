@@ -109,6 +109,7 @@ CITY_FOOT_PREFIX = {
     "oxford": "oxford_foot",
     "rennes": "rennes_foot",
     "yerevan": "yerevan_foot",
+    "kaliningrad": "kaliningrad_foot",
 }
 CITY_CAR_PREFIX = {
     "austin":    "austin_car",
@@ -174,6 +175,7 @@ CITY_CAR_PREFIX = {
     "oxford": "oxford_car",
     "rennes": "rennes_car",
     "yerevan": "yerevan_car",
+    "kaliningrad": "kaliningrad_car",
 }
 
 PRETTY = {
@@ -240,6 +242,7 @@ PRETTY = {
     "oxford": "Oxford, UK",
     "rennes": "Rennes, France",
     "yerevan": "Yerevan, Armenia",
+    "kaliningrad": "Kaliningrad, Russia",
 }
 
 

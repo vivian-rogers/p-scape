@@ -788,6 +788,17 @@ CITIES: dict[str, City] = {
         center=(40.1776, 44.5126),  # Republic Square
         default_zoom=12,
     ),
+    "kaliningrad": City(
+        key="kaliningrad",
+        name="Kaliningrad, Russia",
+        # H4 Soviet arm: Königsberg ~90% destroyed in WWII, rebuilt by the USSR as
+        # monumental blocks over the erased Prussian medieval core. Russia extract.
+        bbox=(20.40, 54.66, 20.56, 54.76),
+        utm_epsg=32634,  # UTM 34N
+        geofabrik_region="russia",
+        center=(54.7104, 20.4522),
+        default_zoom=12,
+    ),
 }
 
 
