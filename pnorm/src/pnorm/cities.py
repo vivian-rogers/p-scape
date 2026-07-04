@@ -623,6 +623,171 @@ CITIES: dict[str, City] = {
         center=(40.4167, -86.8753),  # downtown Lafayette
         default_zoom=12,
     ),
+
+    # ===== low-p / high-third-place quadrant (organic pre-grid density) =====
+    "st_petersburg": City(
+        key="st_petersburg",
+        name="St. Petersburg, Russia",
+        # Planned Baroque canal grid; historic core + Vasilyevsky Island.
+        bbox=(30.20, 59.88, 30.45, 59.98),
+        utm_epsg=32636,  # UTM 36N
+        geofabrik_region="russia",
+        center=(59.9375, 30.3086),  # Palace Square
+        default_zoom=12,
+    ),
+    "moscow": City(
+        key="moscow",
+        name="Moscow, Russia",
+        # Radial/concentric ring form; central Moscow within the Garden Ring.
+        bbox=(37.50, 55.68, 37.75, 55.83),
+        utm_epsg=32637,  # UTM 37N
+        geofabrik_region="russia",
+        center=(55.7520, 37.6175),  # Red Square
+        default_zoom=12,
+    ),
+    "taipei": City(
+        key="taipei",
+        name="Taipei, Taiwan",
+        bbox=(121.49, 24.98, 121.61, 25.09),
+        utm_epsg=32651,  # UTM 51N
+        geofabrik_region="asia/taiwan",
+        center=(25.0330, 121.5654),
+        default_zoom=12,
+    ),
+    "bangkok": City(
+        key="bangkok",
+        name="Bangkok, Thailand",
+        # soi (dead-end alley) network — theoretical extreme of low-p topology.
+        bbox=(100.44, 13.68, 100.58, 13.82),
+        utm_epsg=32647,  # UTM 47N
+        geofabrik_region="asia/thailand",
+        center=(13.7563, 100.5018),
+        default_zoom=12,
+    ),
+    "fez": City(
+        key="fez",
+        name="Fez, Morocco",
+        # Fes el-Bali medina: world's largest car-free labyrinth (max circuity).
+        bbox=(-5.03, 34.02, -4.94, 34.08),
+        utm_epsg=32630,  # UTM 30N
+        geofabrik_region="africa/morocco",
+        center=(34.0640, -4.9770),  # medina
+        default_zoom=13,
+    ),
+
+    # ===== H4 WWII reconstruction — priority matched pairs =====
+    "warsaw": City(
+        key="warsaw",
+        name="Warsaw, Poland",
+        # H4 faithful arm: Old Town rebuilt from Canaletto paintings (+ socialist
+        # realist MDM). Pairs with spared Kraków; Minsk = Soviet arm.
+        bbox=(20.94, 52.19, 21.09, 52.28),
+        utm_epsg=32634,  # UTM 34N
+        geofabrik_region="europe/poland/mazowieckie",
+        center=(52.2297, 21.0122),  # Old Town
+        default_zoom=12,
+    ),
+    "krakow": City(
+        key="krakow",
+        name="Kraków, Poland",
+        # H4 spared control: near-intact medieval core. Pairs with Warsaw.
+        bbox=(19.88, 50.02, 20.02, 50.10),
+        utm_epsg=32634,  # UTM 34N
+        geofabrik_region="europe/poland/malopolskie",
+        center=(50.0647, 19.9450),  # Rynek Główny
+        default_zoom=13,
+    ),
+    "minsk": City(
+        key="minsk",
+        name="Minsk, Belarus",
+        # H4 Soviet monumental arm: rebuilt on Stalinist plan (Independence Ave).
+        bbox=(27.47, 53.86, 27.65, 53.94),
+        utm_epsg=32635,  # UTM 35N
+        geofabrik_region="europe/belarus",
+        center=(53.9023, 27.5619),
+        default_zoom=12,
+    ),
+    "hiroshima": City(
+        key="hiroshima",
+        name="Hiroshima, Japan",
+        # H4 atomic arm: rebuilt as a modern wide-road grid. Pairs w/ spared Kyoto.
+        bbox=(132.40, 34.35, 132.50, 34.42),
+        utm_epsg=32653,  # UTM 53N
+        geofabrik_region="asia/japan/chugoku",
+        center=(34.3853, 132.4553),
+        default_zoom=12,
+    ),
+    "nagoya": City(
+        key="nagoya",
+        name="Nagoya, Japan",
+        # H4 firebomb arm: replanned with 100 m-wide roads + superblocks.
+        bbox=(136.86, 35.13, 136.95, 35.21),
+        utm_epsg=32653,  # UTM 53N
+        geofabrik_region="asia/japan/chubu",
+        center=(35.1815, 136.9066),
+        default_zoom=12,
+    ),
+    "kassel": City(
+        key="kassel",
+        name="Kassel, Germany",
+        # H4 modernist arm: ~90% destroyed, rebuilt car-oriented. Pairs w/ Nuremberg.
+        bbox=(9.43, 51.29, 9.53, 51.34),
+        utm_epsg=32632,  # UTM 32N
+        geofabrik_region="europe/germany/hessen",
+        center=(51.3127, 9.4797),
+        default_zoom=13,
+    ),
+    "heidelberg": City(
+        key="heidelberg",
+        name="Heidelberg, Germany",
+        # H4 spared control: Altstadt intact (never bombed). Baden-Württemberg extract.
+        bbox=(8.63, 49.38, 8.73, 49.43),
+        utm_epsg=32632,  # UTM 32N
+        geofabrik_region="europe/germany/baden-wuerttemberg",
+        center=(49.3988, 8.6724),
+        default_zoom=13,
+    ),
+    "coventry": City(
+        key="coventry",
+        name="Coventry, UK",
+        # H4 modernist arm: blitzed 1940, first UK pedestrian precinct + ring road.
+        bbox=(-1.57, 52.38, -1.47, 52.43),
+        utm_epsg=32630,  # UTM 30N
+        geofabrik_region="europe/united-kingdom/england/west-midlands",
+        center=(52.4068, -1.5197),
+        default_zoom=13,
+    ),
+    "oxford": City(
+        key="oxford",
+        name="Oxford, UK",
+        # H4 spared control: medieval/collegiate core intact. Pairs with Coventry.
+        bbox=(-1.30, 51.73, -1.20, 51.78),
+        utm_epsg=32630,  # UTM 30N
+        geofabrik_region="europe/united-kingdom/england/oxfordshire",
+        center=(51.7520, -1.2577),
+        default_zoom=13,
+    ),
+    "rennes": City(
+        key="rennes",
+        name="Rennes, France",
+        # H4 spared-region control for the Le Havre / Saint-Malo pair. Bretagne extract.
+        bbox=(-1.71, 48.09, -1.63, 48.14),
+        utm_epsg=32630,  # UTM 30N
+        geofabrik_region="europe/france/bretagne",
+        center=(48.1173, -1.6778),
+        default_zoom=13,
+    ),
+    "yerevan": City(
+        key="yerevan",
+        name="Yerevan, Armenia",
+        # Tamanyan's 1924 radial-concentric master plan (ring boulevard + radial
+        # avenues over an older core) — a distinctive planned-geometry case.
+        bbox=(44.44, 40.12, 44.58, 40.23),
+        utm_epsg=32638,  # UTM 38N
+        geofabrik_region="asia/armenia",
+        center=(40.1776, 44.5126),  # Republic Square
+        default_zoom=12,
+    ),
 }
 
 
