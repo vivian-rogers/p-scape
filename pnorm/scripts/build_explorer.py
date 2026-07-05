@@ -33,6 +33,12 @@ SENTINEL = "/*__PAYLOAD_JSON__*/null"
 PRELOAD_CITY = "nyc"
 PRELOAD_MODE = "foot"
 PRELOAD_RADIUS = 800
+# Inlining the preload layer's rasters as base64 gave "instant" first paint, but
+# at 80+ cities it ballooned the HTML to 5.4 MB (60% of it base64, which also
+# compresses poorly) and dominated load time. URL-based loading of the default
+# layer (with the /layers cache headers) is far faster: tiny HTML, then the one
+# displayed raster fetches in parallel. Keep this False.
+PRELOAD_INLINE = False
 
 # Per-city filename pattern. Some early runs used "_foot_core_" instead of
 # "_foot_" because they predate the unified-bbox convention. The new square
@@ -534,7 +540,7 @@ def main() -> None:
     # default city × mode × radius. RasterField transparently accepts data
     # URIs in the same field where it'd otherwise expect a URL.
     preload_key = f"{PRELOAD_CITY}__{PRELOAD_MODE}__{PRELOAD_RADIUS}"
-    if preload_key in layers and preload_key in raster_bytes_cache:
+    if PRELOAD_INLINE and preload_key in layers and preload_key in raster_bytes_cache:
         b = raster_bytes_cache[preload_key]
         inlined = {}
         for field in ("p_mean", "p_median", "circuity_mean", "circuity_median",
@@ -551,6 +557,8 @@ def main() -> None:
             layers[preload_key]["rate_data_raster_url"] = png_to_data_uri(b["rate_data"])
         preload_bytes = sum(len(v) for v in b.values())
         print(f"  preloading {preload_key} ({preload_bytes // 1024} KB inline)")
+    elif not PRELOAD_INLINE:
+        print(f"  base64 preload inline OFF — {preload_key} loads via URL (smaller HTML)")
     else:
         print(f"  WARNING: preload target {preload_key} not present; "
               f"deploy will need a network fetch for first paint")
