@@ -110,6 +110,12 @@ CITY_FOOT_PREFIX = {
     "rennes": "rennes_foot",
     "yerevan": "yerevan_foot",
     "kaliningrad": "kaliningrad_foot",
+    "munster": "munster_foot", "gdansk": "gdansk_foot", "munich": "munich_foot",
+    "middelburg": "middelburg_foot", "wurzburg": "wurzburg_foot", "hannover": "hannover_foot",
+    "pforzheim": "pforzheim_foot", "caen": "caen_foot", "plymouth": "plymouth_foot",
+    "hull": "hull_foot", "exeter": "exeter_foot", "brest": "brest_foot",
+    "dresden": "dresden_foot", "kyiv": "kyiv_foot", "volgograd": "volgograd_foot",
+    "nagasaki": "nagasaki_foot",
 }
 CITY_CAR_PREFIX = {
     "austin":    "austin_car",
@@ -176,6 +182,12 @@ CITY_CAR_PREFIX = {
     "rennes": "rennes_car",
     "yerevan": "yerevan_car",
     "kaliningrad": "kaliningrad_car",
+    "munster": "munster_car", "gdansk": "gdansk_car", "munich": "munich_car",
+    "middelburg": "middelburg_car", "wurzburg": "wurzburg_car", "hannover": "hannover_car",
+    "pforzheim": "pforzheim_car", "caen": "caen_car", "plymouth": "plymouth_car",
+    "hull": "hull_car", "exeter": "exeter_car", "brest": "brest_car",
+    "dresden": "dresden_car", "kyiv": "kyiv_car", "volgograd": "volgograd_car",
+    "nagasaki": "nagasaki_car",
 }
 
 PRETTY = {
@@ -243,6 +255,12 @@ PRETTY = {
     "rennes": "Rennes, France",
     "yerevan": "Yerevan, Armenia",
     "kaliningrad": "Kaliningrad, Russia",
+    "munster": "Münster, Germany", "gdansk": "Gdańsk, Poland", "munich": "Munich, Germany",
+    "middelburg": "Middelburg, Netherlands", "wurzburg": "Würzburg, Germany",
+    "hannover": "Hannover, Germany", "pforzheim": "Pforzheim, Germany", "caen": "Caen, France",
+    "plymouth": "Plymouth, UK", "hull": "Kingston upon Hull, UK", "exeter": "Exeter, UK",
+    "brest": "Brest, France", "dresden": "Dresden, Germany", "kyiv": "Kyiv, Ukraine",
+    "volgograd": "Volgograd, Russia", "nagasaki": "Nagasaki, Japan",
 }
 
 

@@ -799,6 +799,125 @@ CITIES: dict[str, City] = {
         center=(54.7104, 20.4522),
         default_zoom=12,
     ),
+
+    # ===== H4 rebuilt-city exemplars (rounding out the reconstruction arms) =====
+    # --- FAITHFUL arm (rebuilt in historic form) ---
+    "munster": City(
+        key="munster", name="Münster, Germany",
+        # Faithful: Altstadt ~90% destroyed, Prinzipalmarkt rebuilt in historic style.
+        bbox=(7.58, 51.93, 7.68, 52.00), utm_epsg=32632,
+        geofabrik_region="europe/germany/nordrhein-westfalen",
+        center=(51.9607, 7.6261), default_zoom=13,
+    ),
+    "gdansk": City(
+        key="gdansk", name="Gdańsk, Poland",
+        # Faithful: Główne Miasto reconstructed from records after ~90% destruction.
+        bbox=(18.60, 54.32, 18.72, 54.42), utm_epsg=32634,
+        geofabrik_region="europe/poland/pomorskie",
+        center=(54.3520, 18.6466), default_zoom=13,
+    ),
+    "munich": City(
+        key="munich", name="Munich, Germany",
+        # Faithful-leaning: heavily bombed, Altstadt footprint largely preserved.
+        bbox=(11.50, 48.10, 11.66, 48.18), utm_epsg=32632,
+        geofabrik_region="europe/germany/bayern",
+        center=(48.1372, 11.5755), default_zoom=12,
+    ),
+    "middelburg": City(
+        key="middelburg", name="Middelburg, Netherlands",
+        # Faithful: 1940-bombed core rebuilt in traditional style. Small case.
+        bbox=(3.58, 51.47, 3.66, 51.52), utm_epsg=32631,
+        geofabrik_region="europe/netherlands",
+        center=(51.4988, 3.6136), default_zoom=14,
+    ),
+    # --- MODERNIST arm (rebuilt to imposed modern layout) ---
+    "wurzburg": City(
+        key="wurzburg", name="Würzburg, Germany",
+        # Modernist: ~90% destroyed Mar 1945, widened-street rebuild.
+        bbox=(9.90, 49.77, 10.00, 49.82), utm_epsg=32632,
+        geofabrik_region="europe/germany/bayern",
+        center=(49.7913, 9.9534), default_zoom=13,
+    ),
+    "hannover": City(
+        key="hannover", name="Hannover, Germany",
+        # Modernist: Hillebrecht's car-oriented "Aufbauplan" reconstruction.
+        bbox=(9.68, 52.35, 9.79, 52.41), utm_epsg=32632,
+        geofabrik_region="europe/germany/niedersachsen",
+        center=(52.3759, 9.7320), default_zoom=12,
+    ),
+    "pforzheim": City(
+        key="pforzheim", name="Pforzheim, Germany",
+        # Modernist: ~83% destroyed in one raid; rebuilt modern.
+        bbox=(8.65, 48.87, 8.74, 48.91), utm_epsg=32632,
+        geofabrik_region="europe/germany/baden-wuerttemberg",
+        center=(48.8922, 8.6946), default_zoom=13,
+    ),
+    "caen": City(
+        key="caen", name="Caen, France",
+        # Modernist: ~73% destroyed 1944, rebuilt in reconstructed-stone modern grid.
+        bbox=(-0.41, 49.16, -0.32, 49.21), utm_epsg=32630,
+        geofabrik_region="europe/france/basse-normandie",
+        center=(49.1829, -0.3707), default_zoom=13,
+    ),
+    "plymouth": City(
+        key="plymouth", name="Plymouth, UK",
+        # Modernist: Abercrombie plan — grand axial boulevards over blitzed core.
+        bbox=(-4.18, 50.35, -4.10, 50.40), utm_epsg=32630,
+        geofabrik_region="europe/united-kingdom/england/devon",
+        center=(50.3755, -4.1427), default_zoom=13,
+    ),
+    "hull": City(
+        key="hull", name="Kingston upon Hull, UK",
+        # Modernist: most-bombed-per-capita UK city; modern replan.
+        bbox=(-0.40, 53.72, -0.28, 53.79), utm_epsg=32630,
+        geofabrik_region="europe/united-kingdom/england/east-yorkshire-with-hull",
+        center=(53.7676, -0.3274), default_zoom=13,
+    ),
+    "exeter": City(
+        key="exeter", name="Exeter, UK",
+        # Modernist: Thomas plan rebuild after 1942 Baedeker raids.
+        bbox=(-3.57, 50.70, -3.49, 50.74), utm_epsg=32630,
+        geofabrik_region="europe/united-kingdom/england/devon",
+        center=(50.7184, -3.5339), default_zoom=13,
+    ),
+    "brest": City(
+        key="brest", name="Brest, France",
+        # Modernist: naval city obliterated 1944, rebuilt as a concrete grid.
+        bbox=(-4.53, 48.37, -4.44, 48.42), utm_epsg=32630,
+        geofabrik_region="europe/france/bretagne",
+        center=(48.3904, -4.4861), default_zoom=13,
+    ),
+    # --- SOVIET arm ---
+    "dresden": City(
+        key="dresden", name="Dresden, Germany",
+        # Soviet/GDR arm: firebombed 1945, socialist-modernist rebuild (Altmarkt);
+        # some post-1990 historic reconstruction (Neumarkt/Frauenkirche).
+        bbox=(13.68, 51.02, 13.80, 51.09), utm_epsg=32633,
+        geofabrik_region="europe/germany/sachsen",
+        center=(51.0504, 13.7373), default_zoom=12,
+    ),
+    "kyiv": City(
+        key="kyiv", name="Kyiv, Ukraine",
+        # Soviet arm: Khreshchatyk destroyed 1941, rebuilt as Stalinist monumental ave.
+        bbox=(30.44, 50.40, 30.60, 50.50), utm_epsg=32636,
+        geofabrik_region="europe/ukraine",
+        center=(50.4501, 30.5234), default_zoom=12,
+    ),
+    "volgograd": City(
+        key="volgograd", name="Volgograd, Russia",
+        # Soviet arm: Stalingrad ~razed 1942-43, rebuilt as monumental Soviet city.
+        bbox=(44.44, 48.68, 44.58, 48.78), utm_epsg=32638,
+        geofabrik_region="russia",
+        center=(48.7080, 44.5133), default_zoom=12,
+    ),
+    # --- ATOMIC arm ---
+    "nagasaki": City(
+        key="nagasaki", name="Nagasaki, Japan",
+        # Atomic: 1945 A-bomb; rebuilt modern. Pairs with Hiroshima.
+        bbox=(129.83, 32.72, 129.92, 32.80), utm_epsg=32652,
+        geofabrik_region="asia/japan/kyushu",
+        center=(32.7503, 129.8779), default_zoom=12,
+    ),
 }
 
 
