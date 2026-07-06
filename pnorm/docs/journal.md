@@ -4,7 +4,21 @@ Append-only. Newest on top. Same format as parent.
 
 ---
 
-## 2026-07-02 (later) — Mobile audit: findings + fix plan (NOT yet implemented)
+## 2026-07-06 — Mobile fixes shipped (intro footer, double-tap hint, 2-row topbar, zoom-warn blob)
+**Who:** Adam + Claude Code (Fable 5)
+**Done:** (all applied to BOTH `scripts/explorer_template.html` and `data/explorer.html` by hand; verified in the 390×844 iframe sim)
+- **Intro footer pinned.** `.intro-card` overflow auto→hidden; `.intro-slide.active` is now the scroller. Skip · dots · Next always visible (was ~400px below fold on phones). `showSlide` scroll-reset retargeted to the active slide.
+- **Double-tap discoverability.** Vivian's overnight work had already added double-tap-to-inspect + the compact `(hover: none)` result card — the 07-02 audit's findings #1/#2 were stale (and #2 was partly a sim artifact: iframes fake width, NOT pointer type; `(hover: none)` never matches in the sim on a Mac. Remember this). What was missing was discoverability: added a one-time "Double-tap any block for its score" pill (`#touchHint`, zoom-warn styling), shown on touch devices after the intro closes, auto-dismisses after 7s or on first successful double-tap. Gated by localStorage `pscape_taphint`.
+- **Phone topbar 143→111px** (3 chip rows → 2): ≤720px hides chip-label words + the % readout, gap 4px, values capped 110px, slider 62px, field value exempted to 126px via `:has(#fieldPick)` so "effective p (median)" renders unclipped (non-`:has` browsers fall back to ellipsis).
+- **Fixed a real preexisting mobile bug:** the ≤720 `.zoom-warn { top:auto; bottom:90px }` rule precedes the base rule in source order, so base `top:130px` won and any visible pill (zoom warn, Loading…, hint) stretched into a giant blob anchored top AND bottom. Fixed with `#stage .zoom-warn` specificity. This affected production phones whenever the zoom/loading pill showed.
+**Deploy note:** repo now auto-deploys to Vercel (`vercel.json` copies `data/explorer.html` → `web/index.html`) — pushing `data/explorer.html` IS a production deploy.
+**Next:**
+- Real-device pass (iPhone Safari) — the sim can't exercise `(hover: none)` paths: double-tap inspect, compact result card, and the touch hint all need a real phone once deployed.
+- Consider single-tap (not double) for inspect if real-device testing shows double-tap feels hidden; Vivian chose double-tap deliberately (avoids accidental triggers) — discuss before changing.
+
+---
+
+## 2026-07-02 (later) — Mobile audit: findings + fix plan (superseded by 07-06 entry above)
 **Who:** Adam + Claude Code (Opus 4.8)
 **Context:** p-scape will mostly be shared on Twitter → iPhone traffic. Audited at 390×844 via same-origin iframe sim (Chrome won't resize below ~500px; trick: mount `<iframe src="/explorer.html" style="width:390px;height:844px">` — media queries respond to iframe viewport). Serve `pnorm/data/` via `python3 -m http.server 8899` first.
 
