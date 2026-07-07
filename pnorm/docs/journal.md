@@ -4,6 +4,70 @@ Append-only. Newest on top. Same format as parent.
 
 ---
 
+## 2026-07-07 — Note: journal stacked identically across all five open PR branches
+The five entries below land via five separate PRs (#1–#5). To make the PRs merge cleanly in ANY order, `journal.md` was made byte-identical on every branch — so each PR's diff shows all five entries even though its code changes are only its own. After all five merge, this resolves to exactly this file.
+
+---
+
+## 2026-07-07 — Explorer copy: plain language front and center, jargon demoted (not deleted)
+**Who:** Adam + Claude Code (Fable 5)
+**Why:** The Substack flopped for math density and the explorer had the same disease: hover card led with "Per-cell Lᵖ fit", legend led with "Lᵖ-norm exponent best-fit…". Adam's call: non-jargon explanations front and center, jargon visible but less centered. Nothing removed — every formula and technical term survives one register down (fine print, parentheses, or the stats table).
+**Done:** (both `scripts/explorer_template.html` and `data/explorer.html`, hand-synced as usual; verified in served browser, zero console errors)
+- **Field names:** "effective p (median)" → **"street shape · typical"**, "circuity" → **"detour factor"**, "encounter rate" → **"chance encounters"**; mean/median → average/typical. Dropdown keeps the technical term in parens.
+- **Legend:** plain-language `sub` per field ("How directly you can travel from each block — red = forced detours…"); NEW per-field `fine` line renders the equation/definition in the small mono row (was a static p-norm equation regardless of field). Anchor labels now per-field via FIELD_COPY.labels + new `anchorLText/MText/RText` spans — fixes a real bug where the rate field showed "cul-de-sac hell/street-grid/euclidean" on a people-per-km scale (now "ghost town / / busy sidewalk"). "euclidean" → "beeline"; **"cul-de-sac hell" preserved** (brand voice).
+- **Hover card:** idle copy plainified ("Point at any block…"); tier names rewritten (Maze-like / Curvy and disconnected / Classic street grid / Better than a grid / Almost beeline) with p-statements moved to trailing parentheses; **body now leads with the one number anyone can feel** — "Trips from this block run ~X% longer than the crow flies" computed from the active side's circuity; "bimodal directional response" → "Directions split here — some run straight, others detour heavily."
+- **Intro:** slide 1's formula banner moved BELOW the route cards as `.formula-banner.demoted` (new CSS, fine-print register) and a plain `intro-deck` hook added under the headline; slides 2–4 each get a one-line "The gist:" deck so a skimmer can Next through the math tour and still follow the argument. Slide 5 untouched (already plain).
+- **Hero:** rate description → "you'd cross paths with ~X people per km walked"; fallback messages reference "street shape (typical)".
+**Next:**
+- Adam eyeball pass on tone (some lines are opinionated: "cul-de-sac hell", "ghost town").
+- Vivian sanity-check: all technical content preserved but demoted — flag if any fine-print placement hurts the paper-facing story.
+- Merge order note: this branch touches the same two files as `mobile-fixes` (PR #1) and `focus-view` (PR #3) in different regions; journal.md conflicts are trivial (keep all entries).
+
+---
+
+## 2026-07-07 — Rasterize: infill isolated QC-dropout cells (the "transparent tidbits")
+**Who:** Adam + Claude Code (Fable 5)
+**Why:** Adam noticed lone transparent cells sprinkled between strongly-colored ones — "like it's gotten confused and just left it off". Those are cells whose origin failed to snap or lost too many rays to the snap gate: measurement dropouts, not statements about the place.
+**Done:**
+- `rasterize()` gains `infill_min_neighbors` (default 6): a NaN cell with ≥6 finite 8-neighbors is filled with the neighbors' MEDIAN before painting. At 6, singletons/pairs/thin strings get patched; any compact blob ≥2×2 (parks, plazas, water) keeps every cell (a 2×2 corner has only 5 finite neighbors). Cells flagged `in_water` in the npz are never filled. Single pass — fills use measured values only.
+- Applied to visual PNGs AND the hover data PNGs (values shown on hover match painted pixels). The `stats` block (hero medians, CDFs) is always computed from raw un-filled values — the science is untouched. `infill_min_neighbors=None` disables.
+- Quantified on real NYC foot r=800: 193,582 valid cells, 3,391 holes with ≥5 valid neighbors, **1,933 filled at the ≥6 default (~1%)**. Verified end-to-end by reconstructing the field from the inline NYC data PNG and rasterizing before/after — specks and dotted strings gone, parks/water intact.
+- 5 tests in `tests/test_rasterize_infill.py` (speck/pair filled, 2×2 and 4×4 blobs kept, water protected, filled value = neighbor median, stats identical on/off, data-PNG validity == visual validity).
+**Next:**
+- Vivian: regenerate layers (rerun build_explorer) to pick this up — no npz changes needed. **Check a river-heavy city first** (NYC, DC): thin 1-cell water strings rely on `in_water` being populated in the npz; older npz without it would get painted over. If any pre-water-mask npz are still in service, either rerun them or pass `infill_min_neighbors=None` for those.
+
+---
+
+## 2026-07-07 — Explorer: fence the view to the analyzed extent (no more infinite zoom-out)
+**Who:** Adam + Claude Code (Fable 5)
+**Why:** Adam: "I don't want anything to be visible outside of the parts of the cities we've figured out. I shouldn't be able to zoom out infinitely on this crap."
+**Done:** (both `scripts/explorer_template.html` and `data/explorer.html` by hand, as usual)
+- New `applyViewClamp(bounds)` next to map init, called from `renderLayer` for the active layer's `data.bounds`: `maxBounds = bounds.pad(0.15)` with `maxBoundsViscosity: 1.0` (hard fence, no rubber-banding past it), `minZoom = getBoundsZoom(bounds)` (zoom-out stops once the whole extent fits), plus an `outsideMask` polygon — world ring with a hole over the data extent, filled `--paper` at 0.94 opacity, `interactive: false`. Outside the raster you now see faint ghost-streets on paper, clearly "not data".
+- **Ordering matters:** the clamp is applied BEFORE `renderLayer`'s `map.setView(center)` — setView respects maxBounds, so flying to a new city with the old fence still up would stop at the old fence.
+- **Leaflet gotcha found while verifying:** `getBoundsZoom` clamps its result to the CURRENT `minZoom`, so recomputing the fence could never lower it (small city → big city, or desktop → phone viewport, left users unable to see the whole extent). Fix: `setMinZoom(0)` before measuring. Also `map.on('resize')` re-applies the clamp since fit zoom depends on viewport size.
+- Verified in served browser (desktop + 375×812): `setZoom(1)`/`panTo(Paris)` from NYC both bounce back; Barcelona→Houston→Barcelona minZoom tracks 11→10→11 on mobile; mask renders on all cities; permalink `#v=` views clamp correctly (applied after renderLayer). Layer-PNG 404s locally are expected (layers/ lives on Vivian's machine); NYC preload rasters render from the inline payload.
+**Next:**
+- Adam eyeball-review of pad (0.15) and mask opacity (0.94) — both one-line tweaks.
+- Note for Vivian: foot layers fence to the downtown-core bbox, so switching walking→driving visibly changes the fence. Honest, but shout if it feels jumpy.
+
+---
+
+## 2026-07-07 — Rotated anisotropic Minkowski fit (open-queue item 4/5)
+**Who:** Adam + Claude Code (Fable 5)
+**Done:**
+- New `src/pnorm/minkowski_fit.py`: per-cell fit of c(θ) = (A|cos(θ−α)|^p + B|sin(θ−α)|^p)^(1/p), A=a^(−p), B=b^(−p) ≥ 1. Jointly estimates grid exponent p, **grid orientation α** (mod π, fast axis), per-axis throughputs a,b ≤ 1, anisotropy κ=b/a. Consumes the per-ray `circuities` + `theta_dir` arrays circuity_grid.py already saves — no pipeline changes, no reruns needed to adopt.
+- Key structure: p-th power linearizes the model, so for fixed (p, α) the inner problem is closed-form 2×2 box-constrained weighted LS; only (p, α) is gridded (55×36 + parabolic refinement). 100k cells × 48 rays ≈ 9 s. Returns both nested models (pure-rotation A=B=1, and full) so σ can be compared against the axis-aligned MLE.
+- **Settled the bias question empirically — the old caveat #1 prediction was partly wrong.** The distribution of directional circuity over a uniform ring is rotation-invariant, so p_mean/p_median (the fields in production) are *provably immune to grid rotation* — Barcelona-diagonal conclusions are safe. The real biases: (1) the ray-pattern MLE drifts toward p=2 under rotation (true p=1 @45° reads 1.14, σ×140); (2) *anisotropy biases every axis-aligned estimator down hard* (p=1 at κ=0.7 reads ≈0.76 across mean/median/MLE) — slow directions masquerade as cul-de-sac-ness. Figure: `docs/figures/minkowski_fit_bias.png` (`scripts/minkowski_bias_fig.py`).
+- 7 synthetic-recovery tests in `tests/test_minkowski_fit.py` (noise, 10% missing rays, degeneracies, chunking): `uv run --extra dev python -m pytest tests/`. Noiseless recovery is exact; at σ=0.05 log-noise, median errors: p ±0.08, α ±4°, κ ±0.05.
+- Methodology: new "Rotation and anisotropy" section + rewritten caveat #1; PDF recompiled (no typst CLI needed: `uv run --with typst python -c "import typst; typst.compile('docs/methodology.typ', output='docs/methodology.pdf')"`).
+- Caveat: α is unidentifiable where κ≈1 and p≈2 (ball ≈ circle) — only read orientation where the fit beats M0's σ and κ < ~0.95. With K-jittered grids the fit reads the tile-averaged directional pattern (columns come from different jittered origins).
+**Next:**
+- Vivian: run `fit_minkowski` over existing per-ray npz caches → two brand-new renderable fields, **grid-orientation α(x)** (continuous street-grid compass map — strong explorer/viral candidate, e.g. hue=angle) and **anisotropy κ(x)** (river crossings should read as low-κ bands). Then decide whether de-confounded p replaces or accompanies p_median in the explorer.
+- Rendering α needs a cyclic (mod π) colormap, not seismic_r.
+**Noticed (unrelated):** journal 07-06 (on the `mobile-fixes` branch) says pushing `data/explorer.html` auto-deploys via Vercel git integration, but `data/layers/*.png` is gitignored while `vercel.json`'s buildCommand does `cp -r pnorm/data/layers web/` — a git-triggered build can't have those PNGs (would fail or ship rasterless). Real deploys presumably come from `scripts/deploy.sh` (CLI upload from a machine with layers/ present). Worth reconciling before trusting push-to-deploy.
+
+---
+
 ## 2026-07-06 — Mobile fixes shipped (intro footer, double-tap hint, 2-row topbar, zoom-warn blob)
 **Who:** Adam + Claude Code (Fable 5)
 **Done:** (all applied to BOTH `scripts/explorer_template.html` and `data/explorer.html` by hand; verified in the 390×844 iframe sim)
