@@ -4,6 +4,20 @@ Append-only. Newest on top. Same format as parent.
 
 ---
 
+## 2026-07-07 — Explorer: fence the view to the analyzed extent (no more infinite zoom-out)
+**Who:** Adam + Claude Code (Fable 5)
+**Why:** Adam: "I don't want anything to be visible outside of the parts of the cities we've figured out. I shouldn't be able to zoom out infinitely on this crap."
+**Done:** (both `scripts/explorer_template.html` and `data/explorer.html` by hand, as usual)
+- New `applyViewClamp(bounds)` next to map init, called from `renderLayer` for the active layer's `data.bounds`: `maxBounds = bounds.pad(0.15)` with `maxBoundsViscosity: 1.0` (hard fence, no rubber-banding past it), `minZoom = getBoundsZoom(bounds)` (zoom-out stops once the whole extent fits), plus an `outsideMask` polygon — world ring with a hole over the data extent, filled `--paper` at 0.94 opacity, `interactive: false`. Outside the raster you now see faint ghost-streets on paper, clearly "not data".
+- **Ordering matters:** the clamp is applied BEFORE `renderLayer`'s `map.setView(center)` — setView respects maxBounds, so flying to a new city with the old fence still up would stop at the old fence.
+- **Leaflet gotcha found while verifying:** `getBoundsZoom` clamps its result to the CURRENT `minZoom`, so recomputing the fence could never lower it (small city → big city, or desktop → phone viewport, left users unable to see the whole extent). Fix: `setMinZoom(0)` before measuring. Also `map.on('resize')` re-applies the clamp since fit zoom depends on viewport size.
+- Verified in served browser (desktop + 375×812): `setZoom(1)`/`panTo(Paris)` from NYC both bounce back; Barcelona→Houston→Barcelona minZoom tracks 11→10→11 on mobile; mask renders on all cities; permalink `#v=` views clamp correctly (applied after renderLayer). Layer-PNG 404s locally are expected (layers/ lives on Vivian's machine); NYC preload rasters render from the inline payload.
+**Next:**
+- Adam eyeball-review of pad (0.15) and mask opacity (0.94) — both one-line tweaks.
+- Note for Vivian: foot layers fence to the downtown-core bbox, so switching walking→driving visibly changes the fence. Honest, but shout if it feels jumpy.
+
+---
+
 ## 2026-07-02 (later) — Mobile audit: findings + fix plan (NOT yet implemented)
 **Who:** Adam + Claude Code (Opus 4.8)
 **Context:** p-scape will mostly be shared on Twitter → iPhone traffic. Audited at 390×844 via same-origin iframe sim (Chrome won't resize below ~500px; trick: mount `<iframe src="/explorer.html" style="width:390px;height:844px">` — media queries respond to iframe viewport). Serve `pnorm/data/` via `python3 -m http.server 8899` first.

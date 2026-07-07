@@ -1574,6 +1574,43 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
 }).addTo(map);
 
+// ────────────── View clamp + outside-data mask ──────────────
+// The explorer is a statement about the analyzed extent, not a world map:
+// panning is fenced to the active layer's bounds (plus breathing room),
+// zoom-out stops once the whole extent fits, and everything outside the
+// raster is papered over so un-analyzed streets can't be misread as data.
+map.options.maxBoundsViscosity = 1.0;
+let outsideMask = null;
+let lastClampBounds = null;
+function applyViewClamp(boundsArr) {
+  lastClampBounds = boundsArr;
+  const data = L.latLngBounds(boundsArr);
+  map.setMaxBounds(data.pad(0.15));
+  // getBoundsZoom clamps to the CURRENT minZoom, so a previously-set fence
+  // would put a floor under the measurement. Release it first.
+  map.setMinZoom(0);
+  map.setMinZoom(map.getBoundsZoom(data));
+
+  // World ring with a hole over the data extent. ±540° so the fill can't
+  // run out inside the fenced pan range; ±85° is the Mercator limit.
+  const ring = [[-85, -540], [85, -540], [85, 540], [-85, 540]];
+  const hole = [
+    [data.getSouth(), data.getWest()], [data.getNorth(), data.getWest()],
+    [data.getNorth(), data.getEast()], [data.getSouth(), data.getEast()],
+  ];
+  if (outsideMask) {
+    outsideMask.setLatLngs([ring, hole]);
+  } else {
+    const paper = getComputedStyle(document.documentElement)
+      .getPropertyValue('--paper').trim() || '#fef9ee';
+    outsideMask = L.polygon([ring, hole], {
+      stroke: false, fillColor: paper, fillOpacity: 0.94, interactive: false,
+    }).addTo(map);
+  }
+}
+// minZoom depends on viewport size, so recompute when it changes.
+map.on('resize', () => { if (lastClampBounds) applyViewClamp(lastClampBounds); });
+
 // ────────────── Mobile / touch behavior ──────────────
 // Touch devices don't have a cursor, so the hover card is rebound to a
 // double-tap gesture instead. We reclaim Leaflet's default double-tap-zoom
@@ -2029,11 +2066,16 @@ function renderLayer(opts = {}) {
   document.getElementById('heroEyebrow').textContent =
     `${mode === 'foot' ? 'Walking' : 'Driving'} · ${reachLabel(mode, r)}`;
 
-  const center = PAYLOAD.centers[city];
-  if (center && !opts.preserveView) map.setView([center.lat, center.lng], center.zoom);
-
   const key = city + '__' + mode + '__' + r;
   const data = PAYLOAD.layers[key];
+
+  // Re-fence BEFORE the setView below: setView respects maxBounds, so
+  // flying to a new city with the old city's fence still up would stop
+  // at the old fence instead of landing on the new center.
+  if (data && data.bounds) applyViewClamp(data.bounds);
+
+  const center = PAYLOAD.centers[city];
+  if (center && !opts.preserveView) map.setView([center.lat, center.lng], center.zoom);
 
   const loading = document.getElementById('loading');
   loading.style.display = 'none';
