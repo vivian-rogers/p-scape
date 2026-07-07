@@ -452,15 +452,110 @@ Several patterns are worth flagging:
   ]
 )
 
+= Rotation and anisotropy: the Minkowski fit <minkowski-fit>
+
+The estimators above assume the local unit ball is #emph[axis-aligned]
+(streets run east--west / north--south) and #emph[balanced] (both grid
+axes equally fast). Real neighborhoods violate both: grids are rotated
+to follow coastlines, rivers, or rail lines, and one direction is often
+structurally slower (bridge crossings, superblocks, one-way systems).
+The generalization is a rotated, axis-weighted $L^p$ norm
+
+$ norm(v) = ((|u_1| \/ a)^p + (|u_2| \/ b)^p)^(1/p), quad u = R(-alpha) v, $
+
+whose directional circuity at Euclidean bearing $theta$ is
+
+$ c(theta) = (A |cos(theta - alpha)|^p + B |sin(theta - alpha)|^p)^(1/p), quad A = a^(-p), space B = b^(-p). $
+
+Here $p$ is the grid exponent de-confounded from orientation and
+throughput; $alpha$ is the grid orientation (mod $pi$); $a, b in (0,
+1]$ are per-axis throughput scales ($c$ along the rotated axes is
+$1\/a$ and $1\/b$); and $kappa = b\/a in (0, 1]$ summarizes
+anisotropy. Physical circuity satisfies $c(theta) >= 1$; for $p <= 2$
+the directional minimum sits on the grid axes, so $A, B >= 1$ is
+exactly the physical constraint (for $p > 2$ it is necessary but not
+sufficient). The parameterization has the symmetry $(alpha, A, B) ~
+(alpha + pi\/2, B, A)$, resolved by reporting $alpha$ as the
+orientation of the fast axis. When $kappa approx 1$ and $p approx 2$
+the ball is a circle and $alpha$ is unidentifiable --- orientation
+should only be read where the fit beats the axis-aligned residual and
+$kappa$ is clearly below 1.
+
+#strong[How the axis-aligned estimators actually fail.] The
+distribution of $c(theta)$ over uniform $theta$ is invariant under
+rotation of the underlying grid, so the moment estimators
+($M^(-1)$ of the mean, $"Med"^(-1)$ of the median) are #emph[provably
+rotation-immune] --- the original worry that a rotated grid "fits a
+small $p$ for the wrong reason" does not apply to them. The
+ray-pattern MLE is not immune: rotation de-phases the directional
+modulation from the assumed axes and the best axis-aligned fit
+flattens toward the featureless $p = 2$. Measured on noiseless
+synthetic data, true $p = 1$ rotated $45 degree$ reads $p approx
+1.14$ with residual $sigma$ jumping from $0.001$ to $0.19$.
+Anisotropy is the opposite case: it biases #emph[every] axis-aligned
+estimator downward, and by a lot --- $p = 1$ with $kappa = 0.7$ reads
+$p approx 0.76$ across mean, median, and MLE alike. Slow directions
+masquerade as cul-de-sac-ness.
+
+#figure(
+  image("figures/minkowski_fit_bias.png", width: 100%),
+  caption: [
+    (a) Directional circuity curves of the model family. (b) Under
+    pure rotation (true $p = 1$), moment estimators are exactly flat,
+    the axis-aligned MLE drifts toward 2, the rotated fit recovers
+    $p = 1$ at every angle. (c) Under pure anisotropy all
+    axis-aligned estimators read $p$ far below its true value; the
+    rotated anisotropic fit stays on target. Rendered by
+    `scripts/minkowski_bias_fig.py`.
+  ]
+)
+
+#strong[Estimation.] Raising the model to the $p$-th power linearizes
+it: $c(theta_k)^p = A f_(1k) + B f_(2k)$ with $f_(1k) = |cos(theta_k -
+alpha)|^p$, $f_(2k) = |sin(theta_k - alpha)|^p$. For fixed $(p,
+alpha)$ the inner problem is therefore a 2-parameter linear least
+squares with box constraint $A, B >= 1$, solved in closed form
+(interior, two edges, corner). Weighting the $y_k = c_k^p$ residuals
+by $1 \/ y_k^2$ makes the weighted SSR equal $p^2 dot
+"SSR"_(log)$ to first order (since $dif log c = dif(c^p) \/ (p c^p)$),
+so $S \/ p^2$ is a faithful proxy for the log-scale objective and is
+comparable across the whole $(p, alpha)$ grid. Only $(p, alpha)$ is
+gridded ($55 times 36$ by default, $Delta p = 0.05$, $Delta alpha =
+2.5 degree$), with one parabolic refinement step in each, and the
+sufficient statistics are five moment vectors computed as (cells
+$times$ rays) matrix products --- a $10^5$-cell layer fits in $tilde.op
+9$ s. Both nested models are returned: the pure rotated grid ($A = B =
+1$, parameters $p, alpha$) and the full model; comparing their
+residual $sigma$ against the axis-aligned MLE's tells whether
+rotation or anisotropy is real signal in a cell. Implementation in
+`src/pnorm/minkowski_fit.py`; synthetic-recovery validation (noise,
+missing rays, degenerate cases) in `tests/test_minkowski_fit.py`.
+
+Two new per-cell fields fall out for free: the #strong[orientation
+field] $alpha(x)$ --- a continuous street-grid compass map of the city
+--- and the #strong[anisotropy field] $kappa(x)$, which localizes
+structurally slow directions (river crossings read as low-$kappa$
+bands oriented along the river). Neither is renderable from any
+existing output; both consume the per-ray `circuities` array already
+saved by `circuity_grid.py`.
+
+#strong[Remark.] At $p = 2$ the full model's unit ball is a rotated
+ellipse, so the anisotropic fit contains the parent project's
+Riemannian ellipse track as its $p = 2$ slice --- the reconciliation
+anticipated in the caveats below, obtained here as a special case
+rather than a separate pipeline.
+
 = Caveats and future work
 
 #set enum(numbering: "1.")
-+ *Axis-aligned isotropy assumption.* The closed-form $M(p)$ assumes
-  the local network's unit ball is axis-aligned. A neighborhood
-  organized around a $45 degree$ highway will fit a small $p$ for
-  the wrong reason. The next refinement is a per-cell rotation
-  $alpha(x)$ optimized jointly with $p$, generalizing $M(p)$ to a
-  rotated 2-D Minkowski functional.
++ *Axis-aligned isotropy assumption.* Addressed: the preceding
+  section generalizes $M(p)$ to a rotated, axis-weighted Minkowski
+  functional, fitted per cell from the saved per-ray circuities. The
+  moment estimators turn out provably rotation-immune (the
+  directional-circuity distribution over a uniform ring is invariant
+  under grid rotation); the practical bias risks are the ray-pattern
+  MLE under rotation and #emph[all] axis-aligned estimators under
+  anisotropy. City-scale reruns with the new fit remain to be done.
 
 + *Static, all-day routing.* OSRM uses static edge weights (no
   congestion). Time-of-day variation matters for "real" walking and

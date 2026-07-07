@@ -4,6 +4,22 @@ Append-only. Newest on top. Same format as parent.
 
 ---
 
+## 2026-07-07 — Rotated anisotropic Minkowski fit (open-queue item 4/5)
+**Who:** Adam + Claude Code (Fable 5)
+**Done:**
+- New `src/pnorm/minkowski_fit.py`: per-cell fit of c(θ) = (A|cos(θ−α)|^p + B|sin(θ−α)|^p)^(1/p), A=a^(−p), B=b^(−p) ≥ 1. Jointly estimates grid exponent p, **grid orientation α** (mod π, fast axis), per-axis throughputs a,b ≤ 1, anisotropy κ=b/a. Consumes the per-ray `circuities` + `theta_dir` arrays circuity_grid.py already saves — no pipeline changes, no reruns needed to adopt.
+- Key structure: p-th power linearizes the model, so for fixed (p, α) the inner problem is closed-form 2×2 box-constrained weighted LS; only (p, α) is gridded (55×36 + parabolic refinement). 100k cells × 48 rays ≈ 9 s. Returns both nested models (pure-rotation A=B=1, and full) so σ can be compared against the axis-aligned MLE.
+- **Settled the bias question empirically — the old caveat #1 prediction was partly wrong.** The distribution of directional circuity over a uniform ring is rotation-invariant, so p_mean/p_median (the fields in production) are *provably immune to grid rotation* — Barcelona-diagonal conclusions are safe. The real biases: (1) the ray-pattern MLE drifts toward p=2 under rotation (true p=1 @45° reads 1.14, σ×140); (2) *anisotropy biases every axis-aligned estimator down hard* (p=1 at κ=0.7 reads ≈0.76 across mean/median/MLE) — slow directions masquerade as cul-de-sac-ness. Figure: `docs/figures/minkowski_fit_bias.png` (`scripts/minkowski_bias_fig.py`).
+- 7 synthetic-recovery tests in `tests/test_minkowski_fit.py` (noise, 10% missing rays, degeneracies, chunking): `uv run --extra dev python -m pytest tests/`. Noiseless recovery is exact; at σ=0.05 log-noise, median errors: p ±0.08, α ±4°, κ ±0.05.
+- Methodology: new "Rotation and anisotropy" section + rewritten caveat #1; PDF recompiled (no typst CLI needed: `uv run --with typst python -c "import typst; typst.compile('docs/methodology.typ', output='docs/methodology.pdf')"`).
+- Caveat: α is unidentifiable where κ≈1 and p≈2 (ball ≈ circle) — only read orientation where the fit beats M0's σ and κ < ~0.95. With K-jittered grids the fit reads the tile-averaged directional pattern (columns come from different jittered origins).
+**Next:**
+- Vivian: run `fit_minkowski` over existing per-ray npz caches → two brand-new renderable fields, **grid-orientation α(x)** (continuous street-grid compass map — strong explorer/viral candidate, e.g. hue=angle) and **anisotropy κ(x)** (river crossings should read as low-κ bands). Then decide whether de-confounded p replaces or accompanies p_median in the explorer.
+- Rendering α needs a cyclic (mod π) colormap, not seismic_r.
+**Noticed (unrelated):** journal 07-06 (on the `mobile-fixes` branch) says pushing `data/explorer.html` auto-deploys via Vercel git integration, but `data/layers/*.png` is gitignored while `vercel.json`'s buildCommand does `cp -r pnorm/data/layers web/` — a git-triggered build can't have those PNGs (would fail or ship rasterless). Real deploys presumably come from `scripts/deploy.sh` (CLI upload from a machine with layers/ present). Worth reconciling before trusting push-to-deploy.
+
+---
+
 ## 2026-07-02 (later) — Mobile audit: findings + fix plan (NOT yet implemented)
 **Who:** Adam + Claude Code (Opus 4.8)
 **Context:** p-scape will mostly be shared on Twitter → iPhone traffic. Audited at 390×844 via same-origin iframe sim (Chrome won't resize below ~500px; trick: mount `<iframe src="/explorer.html" style="width:390px;height:844px">` — media queries respond to iframe viewport). Serve `pnorm/data/` via `python3 -m http.server 8899` first.
