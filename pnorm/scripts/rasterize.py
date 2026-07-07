@@ -25,6 +25,7 @@ import base64
 import io
 
 import numpy as np
+from numpy.lib.stride_tricks import sliding_window_view
 from PIL import Image
 
 from pnorm.geo import set_utm_epsg, to_lonlat
@@ -206,6 +207,37 @@ def png_to_data_uri(png_bytes: bytes) -> str:
     return "data:image/png;base64," + base64.b64encode(png_bytes).decode("ascii")
 
 
+def _infill_isolated(grid: np.ndarray, protect: np.ndarray | None = None,
+                     min_neighbors: int = 6) -> np.ndarray:
+    """Median-of-neighbors fill for isolated NaN cells (QC dropouts).
+
+    A cell goes NaN when its origin fails to snap or too many rays get
+    dropped — on a map those read as "confused" transparent specks inside
+    solid data. Fill a NaN cell with the median of its finite 8-neighbors
+    when at least `min_neighbors` of them are finite. At the default 6,
+    singletons, pairs, and thin strings get patched while any compact blob
+    of 2×2 or larger (parks, water, plazas — genuinely un-probed places)
+    keeps every cell: a 2×2 corner has only 5 finite neighbors. Cells in
+    `protect` (e.g. the water mask) are never filled. Single pass, so the
+    fill uses measured values only — never other filled cells.
+    """
+    fillable = np.isnan(grid)
+    if protect is not None:
+        fillable &= ~protect
+    if not fillable.any():
+        return grid
+    padded = np.pad(grid, 1, constant_values=np.nan)
+    neigh = sliding_window_view(padded, (3, 3)).reshape(*grid.shape, 9)
+    neigh = neigh[..., [0, 1, 2, 3, 5, 6, 7, 8]]
+    n_ok = np.isfinite(neigh).sum(axis=2)
+    fill = fillable & (n_ok >= min_neighbors)
+    if not fill.any():
+        return grid
+    out = grid.copy()
+    out[fill] = np.nanmedian(neigh[fill], axis=1)
+    return out
+
+
 def _bounds_from_utm(xy: np.ndarray, spacing_m: float, utm_epsg: int) -> list[list[float]]:
     """Axis-aligned lat/lng bbox of the UTM-grid raster, padded by half a cell."""
     set_utm_epsg(utm_epsg)
@@ -226,8 +258,14 @@ def _bounds_from_utm(xy: np.ndarray, spacing_m: float, utm_epsg: int) -> list[li
     return [[min(lats), min(lons)], [max(lats), max(lons)]]
 
 
-def rasterize(d) -> dict:
-    """Turn a loaded npz into visual PNGs + data PNG + bounds + per-field stats."""
+def rasterize(d, infill_min_neighbors: int | None = 6) -> dict:
+    """Turn a loaded npz into visual PNGs + data PNG + bounds + per-field stats.
+
+    `infill_min_neighbors` patches isolated QC-dropout cells (see
+    _infill_isolated) in every rendered raster, including the hover data
+    PNGs so displayed and inspected values agree. The stats block is always
+    computed from raw, un-filled values. Pass None to disable infill.
+    """
     xy = d["xy_utm"]
     spacing_m = float(d["spacing_m"])
     utm_epsg = int(d["utm_epsg"])
@@ -239,6 +277,22 @@ def rasterize(d) -> dict:
     rows = np.round((y_max - xy[:, 1]) / spacing_m).astype(np.int32)  # PNG Y origin top-left
     n_rows = int(rows.max()) + 1
     in_bounds = (rows >= 0) & (rows < n_rows) & (cols >= 0) & (cols < n_cols)
+
+    shape = (n_rows, n_cols)
+    protect = np.zeros(shape, dtype=bool)
+    has_water = ((hasattr(d, "files") and "in_water" in d.files)
+                 or (isinstance(d, dict) and "in_water" in d))
+    if has_water:
+        water = np.asarray(d["in_water"], dtype=bool)
+        protect[rows[in_bounds], cols[in_bounds]] = water[in_bounds]
+
+    def _field_grid(values: np.ndarray) -> np.ndarray:
+        g = np.full(shape, np.nan)
+        place = in_bounds & np.isfinite(values)
+        g[rows[place], cols[place]] = values[place]
+        if infill_min_neighbors is not None:
+            g = _infill_isolated(g, protect, infill_min_neighbors)
+        return g
 
     p_mean   = np.asarray(d["effective_p_mean"], dtype=np.float64)
     p_median = np.asarray(d["effective_p_median"], dtype=np.float64)
@@ -283,9 +337,9 @@ def rasterize(d) -> dict:
 
     rasters: dict[str, bytes] = {}
     stats: dict[str, dict] = {}
+    grids: dict[str, np.ndarray] = {}
     for name, values, normalize_fn, kind in fields:
         finite = np.isfinite(values)
-        place = in_bounds & finite
 
         # p / circuity use the diverging red-cream-blue palette anchored at
         # the grid value. λ_social uses inferno on a log scale: small λ
@@ -294,12 +348,15 @@ def rasterize(d) -> dict:
         # template must match this branch.
         lut = INFERNO_LUT if kind == "lambda" else PALETTE_LUT
 
+        grid = _field_grid(values)
+        grids[name] = grid
+        gfin = np.isfinite(grid)
         img = np.zeros((n_rows, n_cols, 4), dtype=np.uint8)
-        if place.any():
-            t = normalize_fn(values[place])
+        if gfin.any():
+            t = normalize_fn(grid[gfin])
             idx = np.clip((t * 255).astype(np.int32), 0, 255)
-            img[rows[place], cols[place], :3] = lut[idx]
-            img[rows[place], cols[place], 3] = 255
+            img[gfin, :3] = lut[idx]
+            img[gfin, 3] = 255
         rasters[name] = _png_bytes(img)
 
         # Precomputed stats — what the explorer used to compute by iterating
@@ -317,14 +374,17 @@ def rasterize(d) -> dict:
             stats[name] = {"median": float("nan"), "p10": float("nan"),
                            "p90": float("nan"), "cdf": []}
 
-    # Data PNG: RGB = (p_mean, c_mean, p_median); A = validity.
-    valid = in_bounds & np.isfinite(p_mean) & np.isfinite(c_mean) & np.isfinite(p_median)
+    # Data PNG: RGB = (p_mean, c_mean, p_median); A = validity. Built from
+    # the same (possibly infilled) grids as the visuals so hover values
+    # always agree with the rendered pixels.
+    g_pm, g_cm, g_pmed = grids["p_mean"], grids["circuity_mean"], grids["p_median"]
+    dvalid = np.isfinite(g_pm) & np.isfinite(g_cm) & np.isfinite(g_pmed)
     data = np.zeros((n_rows, n_cols, 4), dtype=np.uint8)
-    if valid.any():
-        data[rows[valid], cols[valid], 0] = _quantize_p(p_mean[valid])
-        data[rows[valid], cols[valid], 1] = _quantize_c(c_mean[valid])
-        data[rows[valid], cols[valid], 2] = _quantize_p(p_median[valid])
-        data[rows[valid], cols[valid], 3] = 255
+    if dvalid.any():
+        data[dvalid, 0] = _quantize_p(g_pm[dvalid])
+        data[dvalid, 1] = _quantize_c(g_cm[dvalid])
+        data[dvalid, 2] = _quantize_p(g_pmed[dvalid])
+        data[dvalid, 3] = 255
     data_raster = _png_bytes(data)
 
     # Lambda data PNG (optional, separate from the main data PNG because
@@ -332,21 +392,23 @@ def rasterize(d) -> dict:
     # quantized to uint8, A = validity.
     lambda_data_raster = None
     if has_lambda:
-        lvalid = in_bounds & np.isfinite(lam_vals)
+        g_lam = grids["lambda_social"]
+        lvalid = np.isfinite(g_lam)
         lam_img = np.zeros((n_rows, n_cols, 4), dtype=np.uint8)
         if lvalid.any():
-            lam_img[rows[lvalid], cols[lvalid], 0] = _quantize_lambda(lam_vals[lvalid])
-            lam_img[rows[lvalid], cols[lvalid], 3] = 255
+            lam_img[lvalid, 0] = _quantize_lambda(g_lam[lvalid])
+            lam_img[lvalid, 3] = 255
         lambda_data_raster = _png_bytes(lam_img)
 
     # Diffusive rate data PNG (for hover-value lookup).
     rate_data_raster = None
     if has_rate:
-        rvalid = in_bounds & np.isfinite(rate_vals)
+        g_rate = grids["diffusive_rate"]
+        rvalid = np.isfinite(g_rate)
         rate_img = np.zeros((n_rows, n_cols, 4), dtype=np.uint8)
         if rvalid.any():
-            rate_img[rows[rvalid], cols[rvalid], 0] = _quantize_rate(rate_vals[rvalid])
-            rate_img[rows[rvalid], cols[rvalid], 3] = 255
+            rate_img[rvalid, 0] = _quantize_rate(g_rate[rvalid])
+            rate_img[rvalid, 3] = 255
         rate_data_raster = _png_bytes(rate_img)
 
     bounds = _bounds_from_utm(xy, spacing_m, utm_epsg)
