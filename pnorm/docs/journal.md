@@ -4,6 +4,54 @@ Append-only. Newest on top. Same format as parent.
 
 ---
 
+## 2026-07-07 — Note: journal stacked identically across all five open PR branches
+The five entries below land via five separate PRs (#1–#5). To make the PRs merge cleanly in ANY order, `journal.md` was made byte-identical on every branch — so each PR's diff shows all five entries even though its code changes are only its own. After all five merge, this resolves to exactly this file.
+
+---
+
+## 2026-07-07 — Explorer copy: plain language front and center, jargon demoted (not deleted)
+**Who:** Adam + Claude Code (Fable 5)
+**Why:** The Substack flopped for math density and the explorer had the same disease: hover card led with "Per-cell Lᵖ fit", legend led with "Lᵖ-norm exponent best-fit…". Adam's call: non-jargon explanations front and center, jargon visible but less centered. Nothing removed — every formula and technical term survives one register down (fine print, parentheses, or the stats table).
+**Done:** (both `scripts/explorer_template.html` and `data/explorer.html`, hand-synced as usual; verified in served browser, zero console errors)
+- **Field names:** "effective p (median)" → **"street shape · typical"**, "circuity" → **"detour factor"**, "encounter rate" → **"chance encounters"**; mean/median → average/typical. Dropdown keeps the technical term in parens.
+- **Legend:** plain-language `sub` per field ("How directly you can travel from each block — red = forced detours…"); NEW per-field `fine` line renders the equation/definition in the small mono row (was a static p-norm equation regardless of field). Anchor labels now per-field via FIELD_COPY.labels + new `anchorLText/MText/RText` spans — fixes a real bug where the rate field showed "cul-de-sac hell/street-grid/euclidean" on a people-per-km scale (now "ghost town / / busy sidewalk"). "euclidean" → "beeline"; **"cul-de-sac hell" preserved** (brand voice).
+- **Hover card:** idle copy plainified ("Point at any block…"); tier names rewritten (Maze-like / Curvy and disconnected / Classic street grid / Better than a grid / Almost beeline) with p-statements moved to trailing parentheses; **body now leads with the one number anyone can feel** — "Trips from this block run ~X% longer than the crow flies" computed from the active side's circuity; "bimodal directional response" → "Directions split here — some run straight, others detour heavily."
+- **Intro:** slide 1's formula banner moved BELOW the route cards as `.formula-banner.demoted` (new CSS, fine-print register) and a plain `intro-deck` hook added under the headline; slides 2–4 each get a one-line "The gist:" deck so a skimmer can Next through the math tour and still follow the argument. Slide 5 untouched (already plain).
+- **Hero:** rate description → "you'd cross paths with ~X people per km walked"; fallback messages reference "street shape (typical)".
+**Next:**
+- Adam eyeball pass on tone (some lines are opinionated: "cul-de-sac hell", "ghost town").
+- Vivian sanity-check: all technical content preserved but demoted — flag if any fine-print placement hurts the paper-facing story.
+- Merge order note: this branch touches the same two files as `mobile-fixes` (PR #1) and `focus-view` (PR #3) in different regions; journal.md conflicts are trivial (keep all entries).
+
+---
+
+## 2026-07-07 — Rasterize: infill isolated QC-dropout cells (the "transparent tidbits")
+**Who:** Adam + Claude Code (Fable 5)
+**Why:** Adam noticed lone transparent cells sprinkled between strongly-colored ones — "like it's gotten confused and just left it off". Those are cells whose origin failed to snap or lost too many rays to the snap gate: measurement dropouts, not statements about the place.
+**Done:**
+- `rasterize()` gains `infill_min_neighbors` (default 6): a NaN cell with ≥6 finite 8-neighbors is filled with the neighbors' MEDIAN before painting. At 6, singletons/pairs/thin strings get patched; any compact blob ≥2×2 (parks, plazas, water) keeps every cell (a 2×2 corner has only 5 finite neighbors). Cells flagged `in_water` in the npz are never filled. Single pass — fills use measured values only.
+- Applied to visual PNGs AND the hover data PNGs (values shown on hover match painted pixels). The `stats` block (hero medians, CDFs) is always computed from raw un-filled values — the science is untouched. `infill_min_neighbors=None` disables.
+- Quantified on real NYC foot r=800: 193,582 valid cells, 3,391 holes with ≥5 valid neighbors, **1,933 filled at the ≥6 default (~1%)**. Verified end-to-end by reconstructing the field from the inline NYC data PNG and rasterizing before/after — specks and dotted strings gone, parks/water intact.
+- 5 tests in `tests/test_rasterize_infill.py` (speck/pair filled, 2×2 and 4×4 blobs kept, water protected, filled value = neighbor median, stats identical on/off, data-PNG validity == visual validity).
+**Next:**
+- Vivian: regenerate layers (rerun build_explorer) to pick this up — no npz changes needed. **Check a river-heavy city first** (NYC, DC): thin 1-cell water strings rely on `in_water` being populated in the npz; older npz without it would get painted over. If any pre-water-mask npz are still in service, either rerun them or pass `infill_min_neighbors=None` for those.
+
+---
+
+## 2026-07-07 — Explorer: fence the view to the analyzed extent (no more infinite zoom-out)
+**Who:** Adam + Claude Code (Fable 5)
+**Why:** Adam: "I don't want anything to be visible outside of the parts of the cities we've figured out. I shouldn't be able to zoom out infinitely on this crap."
+**Done:** (both `scripts/explorer_template.html` and `data/explorer.html` by hand, as usual)
+- New `applyViewClamp(bounds)` next to map init, called from `renderLayer` for the active layer's `data.bounds`: `maxBounds = bounds.pad(0.15)` with `maxBoundsViscosity: 1.0` (hard fence, no rubber-banding past it), `minZoom = getBoundsZoom(bounds)` (zoom-out stops once the whole extent fits), plus an `outsideMask` polygon — world ring with a hole over the data extent, filled `--paper` at 0.94 opacity, `interactive: false`. Outside the raster you now see faint ghost-streets on paper, clearly "not data".
+- **Ordering matters:** the clamp is applied BEFORE `renderLayer`'s `map.setView(center)` — setView respects maxBounds, so flying to a new city with the old fence still up would stop at the old fence.
+- **Leaflet gotcha found while verifying:** `getBoundsZoom` clamps its result to the CURRENT `minZoom`, so recomputing the fence could never lower it (small city → big city, or desktop → phone viewport, left users unable to see the whole extent). Fix: `setMinZoom(0)` before measuring. Also `map.on('resize')` re-applies the clamp since fit zoom depends on viewport size.
+- Verified in served browser (desktop + 375×812): `setZoom(1)`/`panTo(Paris)` from NYC both bounce back; Barcelona→Houston→Barcelona minZoom tracks 11→10→11 on mobile; mask renders on all cities; permalink `#v=` views clamp correctly (applied after renderLayer). Layer-PNG 404s locally are expected (layers/ lives on Vivian's machine); NYC preload rasters render from the inline payload.
+**Next:**
+- Adam eyeball-review of pad (0.15) and mask opacity (0.94) — both one-line tweaks.
+- Note for Vivian: foot layers fence to the downtown-core bbox, so switching walking→driving visibly changes the fence. Honest, but shout if it feels jumpy.
+
+---
+
 ## 2026-07-07 — Rotated anisotropic Minkowski fit (open-queue item 4/5)
 **Who:** Adam + Claude Code (Fable 5)
 **Done:**
@@ -20,7 +68,21 @@ Append-only. Newest on top. Same format as parent.
 
 ---
 
-## 2026-07-02 (later) — Mobile audit: findings + fix plan (NOT yet implemented)
+## 2026-07-06 — Mobile fixes shipped (intro footer, double-tap hint, 2-row topbar, zoom-warn blob)
+**Who:** Adam + Claude Code (Fable 5)
+**Done:** (all applied to BOTH `scripts/explorer_template.html` and `data/explorer.html` by hand; verified in the 390×844 iframe sim)
+- **Intro footer pinned.** `.intro-card` overflow auto→hidden; `.intro-slide.active` is now the scroller. Skip · dots · Next always visible (was ~400px below fold on phones). `showSlide` scroll-reset retargeted to the active slide.
+- **Double-tap discoverability.** Vivian's overnight work had already added double-tap-to-inspect + the compact `(hover: none)` result card — the 07-02 audit's findings #1/#2 were stale (and #2 was partly a sim artifact: iframes fake width, NOT pointer type; `(hover: none)` never matches in the sim on a Mac. Remember this). What was missing was discoverability: added a one-time "Double-tap any block for its score" pill (`#touchHint`, zoom-warn styling), shown on touch devices after the intro closes, auto-dismisses after 7s or on first successful double-tap. Gated by localStorage `pscape_taphint`.
+- **Phone topbar 143→111px** (3 chip rows → 2): ≤720px hides chip-label words + the % readout, gap 4px, values capped 110px, slider 62px, field value exempted to 126px via `:has(#fieldPick)` so "effective p (median)" renders unclipped (non-`:has` browsers fall back to ellipsis).
+- **Fixed a real preexisting mobile bug:** the ≤720 `.zoom-warn { top:auto; bottom:90px }` rule precedes the base rule in source order, so base `top:130px` won and any visible pill (zoom warn, Loading…, hint) stretched into a giant blob anchored top AND bottom. Fixed with `#stage .zoom-warn` specificity. This affected production phones whenever the zoom/loading pill showed.
+**Deploy note:** repo now auto-deploys to Vercel (`vercel.json` copies `data/explorer.html` → `web/index.html`) — pushing `data/explorer.html` IS a production deploy.
+**Next:**
+- Real-device pass (iPhone Safari) — the sim can't exercise `(hover: none)` paths: double-tap inspect, compact result card, and the touch hint all need a real phone once deployed.
+- Consider single-tap (not double) for inspect if real-device testing shows double-tap feels hidden; Vivian chose double-tap deliberately (avoids accidental triggers) — discuss before changing.
+
+---
+
+## 2026-07-02 (later) — Mobile audit: findings + fix plan (superseded by 07-06 entry above)
 **Who:** Adam + Claude Code (Opus 4.8)
 **Context:** p-scape will mostly be shared on Twitter → iPhone traffic. Audited at 390×844 via same-origin iframe sim (Chrome won't resize below ~500px; trick: mount `<iframe src="/explorer.html" style="width:390px;height:844px">` — media queries respond to iframe viewport). Serve `pnorm/data/` via `python3 -m http.server 8899` first.
 
