@@ -558,6 +558,12 @@
     font-size: 13px; color: var(--ink-3);
   }
   .formula-banner sup { font-size: 0.75em; }
+  /* Demoted variant: same content, fine-print register (plain words lead the
+     slide; the formula stays visible but stops being the headline). */
+  .formula-banner.demoted {
+    font-size: 13px; padding: 10px 14px; margin: 14px 0 0; opacity: 0.85;
+  }
+  .formula-banner.demoted .where { font-size: 12px; }
 
   /* Methodology steps (slide 3) */
   .method-grid {
@@ -780,14 +786,14 @@
       </label>
       <label class="chip">
         <span class="chip-label">Field</span>
-        <span class="chip-value" id="chipField">effective <i>p</i></span>
+        <span class="chip-value" id="chipField">street shape</span>
         <span class="chip-caret">▾</span>
         <select class="native" id="fieldPick">
-          <option value="p_median" selected>effective p (median)</option>
-          <option value="p">effective p (mean)</option>
-          <option value="circuity_median">circuity (median)</option>
-          <option value="circuity">circuity (mean)</option>
-          <option value="rate">encounter rate (/km)</option>
+          <option value="p_median" selected>street shape · typical (p, median)</option>
+          <option value="p">street shape · average (p, mean)</option>
+          <option value="circuity_median">detour factor · typical (median)</option>
+          <option value="circuity">detour factor · average (mean)</option>
+          <option value="rate">chance encounters (/km)</option>
         </select>
       </label>
       <label class="chip chip-slider" title="Layer opacity">
@@ -814,10 +820,10 @@
     <div class="hover-card idle" id="hoverCard">
       <div class="hover-eyebrow" id="hoverEyebrow">Hover a cell</div>
       <h2 class="hover-headline" id="hoverHeadline">
-        Per-cell L<sup>p</sup> fit
+        Point at any block
       </h2>
       <p class="hover-body" id="hoverBody">
-        Each hex is one origin. Mean averages 48 ring rays; median is robust to a few high-detour outliers.
+        Every tile is one spot in the city, colored by how directly you can get places from it. The raw numbers (effective <i>p</i>, detour ratio) appear here too.
       </p>
       <div class="hover-stats" id="hoverStats" style="display:none">
         <table class="hover-table">
@@ -846,8 +852,8 @@
 
     <div class="legend" id="legend">
       <div class="legend-head">
-        <div class="legend-field" id="legendField">effective <i>p</i></div>
-        <div class="legend-sub" id="legendSub">L<sup>p</sup>-norm exponent best-fit to local routing distances. Lower = network forces detour; higher = travel approaches Euclidean.</div>
+        <div class="legend-field" id="legendField">street shape · typical</div>
+        <div class="legend-sub" id="legendSub">How directly you can travel from each block — red = forced detours, cream = grid-like, blue = beats a grid.</div>
       </div>
       <div class="legend-strip" id="legendStrip">
         <div class="legend-tick" style="left:0%"></div>
@@ -855,9 +861,9 @@
         <div class="legend-tick" style="left:100%"></div>
       </div>
       <div class="legend-anchors">
-        <div class="legend-anchor al" style="left:0%"><span class="num" id="anchorL">0.0</span>cul-de-sac hell</div>
-        <div class="legend-anchor am" style="left:50%"><span class="num" id="anchorM">1.0</span>street-grid</div>
-        <div class="legend-anchor ar" style="left:100%"><span class="num" id="anchorR">2.0</span>euclidean</div>
+        <div class="legend-anchor al" style="left:0%"><span class="num" id="anchorL">0.0</span><span id="anchorLText">cul-de-sac hell</span></div>
+        <div class="legend-anchor am" style="left:50%"><span class="num" id="anchorM">1.0</span><span id="anchorMText">street grid</span></div>
+        <div class="legend-anchor ar" style="left:100%"><span class="num" id="anchorR">2.0</span><span id="anchorRText">beeline</span></div>
       </div>
       <div class="legend-eq" id="legendEq" aria-hidden="true">
         &#x2016;<i>v</i>&#x2016;<sub><i>p</i></sub> = (|<i>x</i>|<sup><i>p</i></sup> + |<i>y</i>|<sup><i>p</i></sup>)<sup>1/<i>p</i></sup>
@@ -888,15 +894,13 @@
         <h1 class="intro-h1">
           Same A to B. <span class="em-cold">Very different path.</span>
         </h1>
+        <p class="intro-deck">
+          Two trips, the same distance as the crow flies. One neighborhood
+          hands you a 15× detour; the other is nearly a straight shot. This
+          map measures that difference for every block of a city.
+        </p>
       </div>
       <div class="slide-body">
-        <div class="formula-banner">
-          C(<em>P</em>) = d<sub>route</sub> / d<sub>straight</sub>
-          <span class="where">
-            Circuity: route length as a multiple of crow-flight. C = 1 is
-            direct; C = 1.3 means you traveled 1.3× as far; C = 15 means 15×.
-          </span>
-        </div>
         <div class="path-cards">
           <div class="path-card hot">
             <div class="path-card-title">
@@ -957,11 +961,18 @@
           </div>
         </div>
         <div class="slide-takeaway">
-          Houston's <strong>C ≈ 14.8</strong> isn't typical sprawl — a single
+          Houston's <strong>14.8×</strong> isn't typical sprawl — a single
           uncrossable barrier forces the route the long way around. Eixample's
-          <strong>C ≈ 1.30</strong> reflects Cerdà's 1859 plan: a 45°-rotated grid
+          <strong>1.30×</strong> reflects Cerdà's 1859 plan: a 45°-rotated grid
           with chamfered octagonal corners, cut by the <em>Diagonal</em> and
           <em>Meridiana</em> avenues.
+        </div>
+        <div class="formula-banner demoted">
+          C(<em>P</em>) = d<sub>route</sub> / d<sub>straight</sub>
+          <span class="where">
+            The measure is called circuity: route length as a multiple of
+            crow-flight. C = 1 is direct; C = 1.3 means 1.3× as far; C = 15 means 15×.
+          </span>
         </div>
       </div>
     </section>
@@ -973,6 +984,10 @@
         <h1 class="intro-h1">
           One <span class="em-cold">family of distances</span>, one parameter <em>p</em>.
         </h1>
+        <p class="intro-deck">
+          The gist: one dial runs from "pure grid" (p = 1) to "straight line
+          anywhere" (p = 2). Every neighborhood sits somewhere on that dial.
+        </p>
       </div>
       <div class="slide-body">
         <div class="formula-banner">
@@ -1050,6 +1065,10 @@
         <h1 class="intro-h1">
           Probe the network, then <span class="em-cold">solve for effective <em>p</em></span>.
         </h1>
+        <p class="intro-deck">
+          The gist: from every block, we request 48 real routes in a ring and
+          measure how much longer each runs than the crow flies.
+        </p>
       </div>
       <div class="slide-body">
         <div class="method-grid">
@@ -1153,6 +1172,10 @@
         <h1 class="intro-h1">
           From mean or median <span class="em-cold">circuity to effective <em>p</em>.</span>
         </h1>
+        <p class="intro-deck">
+          The gist: one clean curve converts the measured detour ratio into
+          the <em>p</em> dial — no tuning, no judgment calls.
+        </p>
       </div>
       <div class="slide-body">
         <div class="curves-pair">
@@ -1510,48 +1533,61 @@ function paintLegend(paletteFn) {
 }
 paintLegend(paletteAt);
 
-// Field-aware copy for the bottom legend.
+// Field-aware copy for the bottom legend. Convention: `sub` is the plain-
+// language read (what a first-time visitor needs), `fine` is the technical
+// definition rendered in the small mono line below the anchors — the jargon
+// stays visible, one register down.
 const FIELD_COPY = {
   p: {
-    name: 'effective <i>p</i> (mean)',
-    sub: 'L<sup>p</sup>-norm exponent that reproduces the cell\'s <em>mean</em> ' +
-         'circuity. Sensitive to outlier rays — a single freeway-blocked direction ' +
-         'can drag <i>p</i> down even if the rest of the network is grid-like.',
+    name: 'street shape · average',
+    sub: 'How directly you can travel from each block — <strong>red</strong> = forced detours, ' +
+         '<strong>cream</strong> = grid-like, <strong>blue</strong> = beats a grid. Averaged over ' +
+         'every direction, so one blocked crossing (freeway, river) can drag a block red.',
     anchors: ['0.0', '1.0', '2.0'],
-    chip: 'effective <i>p</i> (mean)',
+    labels: ['cul-de-sac hell', 'street grid', 'beeline'],
+    fine: 'effective <i>p</i>, mean-circuity fit &middot; ' +
+          '&#x2016;<i>v</i>&#x2016;<sub><i>p</i></sub> = (|<i>x</i>|<sup><i>p</i></sup> + |<i>y</i>|<sup><i>p</i></sup>)<sup>1/<i>p</i></sup>' +
+          ' &middot; grid <i>p</i> = 1, euclidean <i>p</i> = 2',
+    chip: 'street shape · average',
   },
   p_median: {
-    name: 'effective <i>p</i> (median)',
-    sub: 'L<sup>p</sup>-norm exponent that reproduces the cell\'s <em>median</em> ' +
-         'circuity. Robust to outlier rays — high-circuity diffs vs the mean view ' +
-         'flag cells with one or two blocked directions amid an otherwise normal network.',
+    name: 'street shape · typical',
+    sub: 'How directly you can travel from each block — <strong>red</strong> = forced detours, ' +
+         '<strong>cream</strong> = grid-like, <strong>blue</strong> = beats a grid. Reads the ' +
+         'typical direction, so one blocked crossing won\'t hide an otherwise healthy grid.',
     anchors: ['0.0', '1.0', '2.0'],
-    chip: 'effective <i>p</i> (median)',
+    labels: ['cul-de-sac hell', 'street grid', 'beeline'],
+    fine: 'effective <i>p</i>, median-circuity fit &middot; ' +
+          '&#x2016;<i>v</i>&#x2016;<sub><i>p</i></sub> = (|<i>x</i>|<sup><i>p</i></sup> + |<i>y</i>|<sup><i>p</i></sup>)<sup>1/<i>p</i></sup>' +
+          ' &middot; grid <i>p</i> = 1, euclidean <i>p</i> = 2',
+    chip: 'street shape · typical',
   },
   circuity: {
-    name: 'circuity (mean)',
-    sub: 'Mean network distance ÷ straight-line distance, averaged over a ring of 48 destinations. ' +
-         'A perfect grid averages 4/π ≈ 1.273; Euclidean is 1.0.',
+    name: 'detour factor · average',
+    sub: 'How much longer real routes run than the straight line, averaged over every direction. ' +
+         '1.0 = beeline; 1.5 = every trip runs 50% long.',
     anchors: ['2.5+', '1.27', '1.00'],
-    chip: 'circuity (mean)',
+    labels: ['heavy detours', 'grid pace', 'beeline'],
+    fine: 'mean circuity C&#772; = d<sub>route</sub> / d<sub>straight</sub> over 48 ring rays &middot; perfect grid: 4/π ≈ 1.273',
+    chip: 'detour factor · average',
   },
   circuity_median: {
-    name: 'circuity (median)',
-    sub: 'Median network distance ÷ straight-line distance over the 48 ring rays. ' +
-         'Robust to one or two heavily detoured directions — grid anchor sits at cos(π/8)+sin(π/8) ≈ 1.31, Euclidean 1.0.',
-    anchors: ['2.5+', '1.27', '1.00'],
-    chip: 'circuity (median)',
+    name: 'detour factor · typical',
+    sub: 'How much longer real routes run than the straight line, in the typical direction — ' +
+         'one or two blocked crossings won\'t skew it. 1.0 = beeline; 1.5 = trips run 50% long.',
+    anchors: ['2.5+', '1.31', '1.00'],
+    labels: ['heavy detours', 'grid pace', 'beeline'],
+    fine: 'median circuity C&#771; over 48 ring rays &middot; perfect grid: cos(π/8)+sin(π/8) ≈ 1.31',
+    chip: 'detour factor · typical',
   },
   rate: {
-    name: 'encounter rate (/km)',
-    sub: 'Expected number of random other people you\'d encounter per kilometer walked, ' +
-         'under a diffusive (random-walking) social-mixing model. ' +
-         '1/λ_diff = 2π·n(x) / (C_median(x)²·ln(L²/σ²)) — combines local population ' +
-         'density (GHS-POP 100 m) with the network\'s C² diffusion-penalty. ' +
-         'Inferno palette on linear [0, 15] per km. Bright = constant incidental contact; ' +
-         'dark = isolated even by random search.',
+    name: 'chance encounters (/km)',
+    sub: 'How many people you\'d cross paths with per kilometer of wandering — local population ' +
+         'density combined with how connected the streets are. Bright = lively; dark = isolated.',
     anchors: ['0', '7.5', '15'],
-    chip: 'encounter rate (/km)',
+    labels: ['ghost town', '', 'busy sidewalk'],
+    fine: 'diffusive mixing model &middot; 1/λ<sub>diff</sub> = 2π·n(x) / (C&#771;² · ln(L²/σ²)) &middot; GHS-POP 100 m density',
+    chip: 'chance encounters',
   },
 };
 function applyFieldCopy(field) {
@@ -1561,6 +1597,10 @@ function applyFieldCopy(field) {
   document.getElementById('anchorL').textContent = c.anchors[0];
   document.getElementById('anchorM').textContent = c.anchors[1];
   document.getElementById('anchorR').textContent = c.anchors[2];
+  document.getElementById('anchorLText').textContent = c.labels[0];
+  document.getElementById('anchorMText').textContent = c.labels[1];
+  document.getElementById('anchorRText').textContent = c.labels[2];
+  document.getElementById('legendEq').innerHTML = c.fine;
   document.getElementById('chipField').innerHTML = c.chip;
   // p / circuity use the diverging palette; λ_social and rate use inferno.
   paintLegend((field === 'lambda' || field === 'rate') ? infernoAt : paletteAt);
@@ -1971,23 +2011,23 @@ function interpret(p, cdf, cityName) {
 
   let tier, body;
   if (!isFinite(p) || p <= 0.001) {
-    tier = 'No routable origin';
-    body = 'The routing graph has no road within one cell spacing — water, park, or an interior parcel.';
+    tier = 'No streets to measure';
+    body = 'No road within a block of this point — water, a park, or the middle of a large parcel.';
   } else if (p < 0.55) {
-    tier = 'Highly meandering';
-    body = 'p ≪ 1: every off-axis direction detours past even a Manhattan grid. Superblocks, barriers, or dense cul-de-sac fabric dominate.';
+    tier = 'Maze-like';
+    body = 'Almost every trip from here fights the street layout — dead ends, barriers, or superblocks force the long way around. (p ≪ 1)';
   } else if (p < 0.85) {
-    tier = 'Curvilinear / suburban';
-    body = 'p < 1: streets curve and dead-end rather than run in a grid. Most off-axis trips run longer than the +27% a pure grid would impose.';
+    tier = 'Curvy and disconnected';
+    body = 'Streets bend and dead-end instead of linking up, so most trips run meaningfully longer than a simple grid would allow. (p < 1)';
   } else if (p < 1.05) {
-    tier = 'Near a taxicab grid (L¹)';
-    body = 'p ≈ 1: trips average about |Δx| + |Δy| — the canonical Manhattan-grid limit. No diagonals to speak of.';
+    tier = 'Classic street grid';
+    body = 'Right-angle blocks: you go over, then up. Trips run about 27% past the straight line — the Manhattan pattern. (p ≈ 1)';
   } else if (p < 1.25) {
-    tier = 'Beats a taxicab grid (sub-L¹)';
-    body = 'p > 1: the network has shortcuts. Diagonals, chamfered corners, or angled streets cut trips below the pure-grid baseline.';
+    tier = 'Better than a grid';
+    body = 'Diagonals and cut-throughs shave real distance off trips a pure grid would force the long way. (p > 1)';
   } else {
-    tier = 'Nearing Euclidean (L²)';
-    body = 'p approaches 2: trips approach the straight-line crow\'s-flight distance. Diagonal boulevards or radial streets are doing the work.';
+    tier = 'Almost beeline';
+    body = 'Trips run close to straight-line distance — diagonal boulevards or radial streets are doing the work. (p → 2)';
   }
 
   let rank;
@@ -2099,14 +2139,14 @@ function renderLayer(opts = {}) {
       extra = `median ${Math.round(median)} m · p10 ${Math.round(p10)} m · p90 ${Math.round(p90)} m`;
     }
     if (field === 'rate') {
-      desc = `Diffusive encounter rate: ~${median.toFixed(2)} people per km walked at random.`;
+      desc = `Chance encounters: you'd cross paths with ~${median.toFixed(2)} people per km walked.`;
       extra = `median ${median.toFixed(2)}/km · p10 ${p10.toFixed(2)}/km · p90 ${p90.toFixed(2)}/km`;
     }
     if (lambdaUnavailable) {
-      desc = `λ_social not yet computed for this city — showing effective p (median) instead. ` + desc;
+      desc = `λ_social not yet computed for this city — showing street shape (typical) instead. ` + desc;
     }
     if (rateUnavailable) {
-      desc = `Encounter rate not yet computed for this city — showing effective p (median) instead. ` + desc;
+      desc = `Chance encounters not yet computed for this city — showing street shape (typical) instead. ` + desc;
     }
     document.getElementById('heroSub').innerHTML =
       `${desc} <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mute)">· ${extra}</span>`;
@@ -2124,7 +2164,7 @@ function renderLayer(opts = {}) {
       rankSuffix = 'tightest social MFP at this scale';
     }
     if (field === 'rate') {
-      rankSuffix = 'highest incidental encounter rate at this scale';
+      rankSuffix = 'most chance encounters at this scale';
     }
     document.getElementById('heroRank').innerHTML =
       `<span class="hero-rank-n">#${myIdx + 1} of ${ranks.length}</span> ${rankSuffix}`;
@@ -2175,17 +2215,21 @@ function updateHover(v) {
   hoverEyebrow.textContent = `${lat.toFixed(4)}, ${lng.toFixed(4)} · ${cityName}`;
   hoverHeadline.textContent = tier;
 
-  // Body is per-tier intuition for what the cell's p value means. Only
-  // append a mean-vs-median observation when the gap is large enough to
-  // actually carry signal — small gaps are floor noise and would otherwise
-  // wash out the intuition line.
+  // Body leads with the one number anyone can feel — how much longer trips
+  // run than the crow flies — then the per-tier intuition. Only append a
+  // mean-vs-median observation when the gap is large enough to carry signal —
+  // small gaps are floor noise and would otherwise wash out the intuition.
   let bodyText = body;
+  const activeC = meanActive ? cMean : cMedian;
+  if (isFinite(activeC) && activeC >= 1 && activeP > 0.001) {
+    bodyText = `Trips from this block run ~${Math.round((activeC - 1) * 100)}% longer than the crow flies. ` + bodyText;
+  }
   const dp = pMedian - pMean;
   if (isFinite(pMean) && isFinite(pMedian) && activeP > 0.001 && Math.abs(dp) >= 0.15) {
     if (dp > 0) {
-      bodyText += ` Median runs ${dp.toFixed(2)} above mean — one or more directions detour heavily, dragging the mean down.`;
+      bodyText += ` One or two directions detour hard here (freeway, rail, or water), dragging the average down.`;
     } else {
-      bodyText += ` Mean runs ${(-dp).toFixed(2)} above median — bimodal directional response.`;
+      bodyText += ` Directions split here — some run straight, others detour heavily.`;
     }
   }
   hoverBody.textContent = bodyText;
