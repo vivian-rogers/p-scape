@@ -4,6 +4,19 @@ Append-only. Newest on top. Same format as parent.
 
 ---
 
+## 2026-07-07 — Rasterize: infill isolated QC-dropout cells (the "transparent tidbits")
+**Who:** Adam + Claude Code (Fable 5)
+**Why:** Adam noticed lone transparent cells sprinkled between strongly-colored ones — "like it's gotten confused and just left it off". Those are cells whose origin failed to snap or lost too many rays to the snap gate: measurement dropouts, not statements about the place.
+**Done:**
+- `rasterize()` gains `infill_min_neighbors` (default 6): a NaN cell with ≥6 finite 8-neighbors is filled with the neighbors' MEDIAN before painting. At 6, singletons/pairs/thin strings get patched; any compact blob ≥2×2 (parks, plazas, water) keeps every cell (a 2×2 corner has only 5 finite neighbors). Cells flagged `in_water` in the npz are never filled. Single pass — fills use measured values only.
+- Applied to visual PNGs AND the hover data PNGs (values shown on hover match painted pixels). The `stats` block (hero medians, CDFs) is always computed from raw un-filled values — the science is untouched. `infill_min_neighbors=None` disables.
+- Quantified on real NYC foot r=800: 193,582 valid cells, 3,391 holes with ≥5 valid neighbors, **1,933 filled at the ≥6 default (~1%)**. Verified end-to-end by reconstructing the field from the inline NYC data PNG and rasterizing before/after — specks and dotted strings gone, parks/water intact.
+- 5 tests in `tests/test_rasterize_infill.py` (speck/pair filled, 2×2 and 4×4 blobs kept, water protected, filled value = neighbor median, stats identical on/off, data-PNG validity == visual validity).
+**Next:**
+- Vivian: regenerate layers (rerun build_explorer) to pick this up — no npz changes needed. **Check a river-heavy city first** (NYC, DC): thin 1-cell water strings rely on `in_water` being populated in the npz; older npz without it would get painted over. If any pre-water-mask npz are still in service, either rerun them or pass `infill_min_neighbors=None` for those.
+
+---
+
 ## 2026-07-02 (later) — Mobile audit: findings + fix plan (NOT yet implemented)
 **Who:** Adam + Claude Code (Opus 4.8)
 **Context:** p-scape will mostly be shared on Twitter → iPhone traffic. Audited at 390×844 via same-origin iframe sim (Chrome won't resize below ~500px; trick: mount `<iframe src="/explorer.html" style="width:390px;height:844px">` — media queries respond to iframe viewport). Serve `pnorm/data/` via `python3 -m http.server 8899` first.
