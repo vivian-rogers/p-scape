@@ -4,6 +4,22 @@ Append-only. Newest on top. Same format as parent.
 
 ---
 
+## 2026-07-07 — Explorer copy: plain language front and center, jargon demoted (not deleted)
+**Who:** Adam + Claude Code (Fable 5)
+**Why:** The Substack flopped for math density and the explorer had the same disease: hover card led with "Per-cell Lᵖ fit", legend led with "Lᵖ-norm exponent best-fit…". Adam's call: non-jargon explanations front and center, jargon visible but less centered. Nothing removed — every formula and technical term survives one register down (fine print, parentheses, or the stats table).
+**Done:** (both `scripts/explorer_template.html` and `data/explorer.html`, hand-synced as usual; verified in served browser, zero console errors)
+- **Field names:** "effective p (median)" → **"street shape · typical"**, "circuity" → **"detour factor"**, "encounter rate" → **"chance encounters"**; mean/median → average/typical. Dropdown keeps the technical term in parens.
+- **Legend:** plain-language `sub` per field ("How directly you can travel from each block — red = forced detours…"); NEW per-field `fine` line renders the equation/definition in the small mono row (was a static p-norm equation regardless of field). Anchor labels now per-field via FIELD_COPY.labels + new `anchorLText/MText/RText` spans — fixes a real bug where the rate field showed "cul-de-sac hell/street-grid/euclidean" on a people-per-km scale (now "ghost town / / busy sidewalk"). "euclidean" → "beeline"; **"cul-de-sac hell" preserved** (brand voice).
+- **Hover card:** idle copy plainified ("Point at any block…"); tier names rewritten (Maze-like / Curvy and disconnected / Classic street grid / Better than a grid / Almost beeline) with p-statements moved to trailing parentheses; **body now leads with the one number anyone can feel** — "Trips from this block run ~X% longer than the crow flies" computed from the active side's circuity; "bimodal directional response" → "Directions split here — some run straight, others detour heavily."
+- **Intro:** slide 1's formula banner moved BELOW the route cards as `.formula-banner.demoted` (new CSS, fine-print register) and a plain `intro-deck` hook added under the headline; slides 2–4 each get a one-line "The gist:" deck so a skimmer can Next through the math tour and still follow the argument. Slide 5 untouched (already plain).
+- **Hero:** rate description → "you'd cross paths with ~X people per km walked"; fallback messages reference "street shape (typical)".
+**Next:**
+- Adam eyeball pass on tone (some lines are opinionated: "cul-de-sac hell", "ghost town").
+- Vivian sanity-check: all technical content preserved but demoted — flag if any fine-print placement hurts the paper-facing story.
+- Merge order note: this branch touches the same two files as `mobile-fixes` (PR #1) and `focus-view` (PR #3) in different regions; journal.md conflicts are trivial (keep all entries).
+
+---
+
 ## 2026-07-02 (later) — Mobile audit: findings + fix plan (NOT yet implemented)
 **Who:** Adam + Claude Code (Opus 4.8)
 **Context:** p-scape will mostly be shared on Twitter → iPhone traffic. Audited at 390×844 via same-origin iframe sim (Chrome won't resize below ~500px; trick: mount `<iframe src="/explorer.html" style="width:390px;height:844px">` — media queries respond to iframe viewport). Serve `pnorm/data/` via `python3 -m http.server 8899` first.
