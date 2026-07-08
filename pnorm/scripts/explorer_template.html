@@ -183,6 +183,19 @@
     .chip { flex-shrink: 0; }
     /* Keep the help chip compact on phones: circled ? only */
     .chip-help-label { display: none; }
+    /* Values alone read fine on phones ("New York City · walking · 800 m");
+       dropping the CITY/MODE/… words, the % readout (the slider position is
+       the readout), and tightening gaps packs the chips into 2 rows:
+       [city · mode · reach] / [field · opacity · share]. */
+    .chip .chip-label { display: none; }
+    .chip-range { width: 62px; }
+    .chips { gap: 4px; }
+    .chip-value { max-width: 110px; }
+    /* Exception: "effective p (median)" needs 126px to render unclipped; the
+       slider gave up the width for it. :has() misses (old browsers) fall back
+       to the 110px ellipsis — cosmetic only. */
+    .chips label:has(#fieldPick) .chip-value { max-width: 126px; }
+    .chip-value-narrow { display: none; }
   }
 
   /* ───────────── Stage ───────────── */
@@ -396,8 +409,11 @@
     .legend-field { font-size: 13px; }
 
     /* Zoom-warn: move from middle-of-map to right below the toolbar so it
-       stops covering the heatmap. */
-    .zoom-warn { top: auto; bottom: 90px; }
+       stops covering the heatmap. #stage prefix: this rule precedes the base
+       .zoom-warn rule in source order, so without the higher specificity the
+       base top:130px would win and the pill would stretch between top AND
+       bottom anchors (giant blob). */
+    #stage .zoom-warn { top: auto; bottom: 90px; }
   }
 
   /* Touch-only devices have no cursor. Instead of hovering, we hand the same
@@ -463,7 +479,10 @@
     border-radius: 18px;
     width: min(840px, 100%);
     max-height: calc(100dvh - 48px);
-    overflow: auto;
+    /* The card itself must not scroll: the active slide is the scroller, so
+       the dots + Skip/Next footer stay pinned and reachable on phones (the
+       old card-level scroll buried the footer ~400px below the fold). */
+    overflow: hidden;
     box-shadow: 0 30px 80px rgba(0,0,0,0.35);
     display: flex; flex-direction: column;
   }
@@ -478,7 +497,7 @@
   }
   .intro-dots .dot.active { background: var(--ink); transform: scale(1.25); }
   .intro-slide { display: none; }
-  .intro-slide.active { display: block; }
+  .intro-slide.active { display: block; overflow-y: auto; min-height: 0; -webkit-overflow-scrolling: touch; }
   .intro-head {
     padding: 14px 30px 18px;
   }
@@ -843,6 +862,7 @@
 
     <div class="zoom-warn" id="zoomWarn" style="display:none">Zoom in — hexes are sub-pixel here.</div>
     <div class="zoom-warn" id="layerLoading" style="display:none">Loading…</div>
+    <div class="zoom-warn" id="touchHint" style="display:none">Double-tap any block for its score</div>
 
     <div class="legend" id="legend">
       <div class="legend-head">
@@ -1584,7 +1604,7 @@ if (IS_TOUCH) {
   map.on('dblclick', (e) => {
     if (!rasterField) return;
     const v = rasterField.sampleAt(e.latlng.lat, e.latlng.lng);
-    if (v) updateHover({ ...v, lat: e.latlng.lat, lng: e.latlng.lng });
+    if (v) { updateHover({ ...v, lat: e.latlng.lat, lng: e.latlng.lng }); dismissTouchHint(); }
   });
 }
 
@@ -2292,13 +2312,32 @@ function showSlide(i) {
     delete introNext.dataset.last;
   }
   // Scroll the card back to top on slide change
-  const card = introBack.querySelector('.intro-card');
-  if (card) card.scrollTop = 0;
+  const activeSlide = introBack.querySelector('.intro-slide.active');
+  if (activeSlide) activeSlide.scrollTop = 0;
 }
 
 function hideIntro() {
   introBack.classList.add('hidden');
   localStorage.setItem('pscape_seen', '1');
+  maybeShowTouchHint();
+}
+
+// Double-tap inspect is invisible without a nudge: once per device, show a
+// short-lived pill after the intro closes. Dismissed early by a first
+// successful double-tap.
+const touchHintEl = document.getElementById('touchHint');
+let _touchHintTimer = null;
+function maybeShowTouchHint() {
+  if (!IS_TOUCH || !touchHintEl) return;
+  if (localStorage.getItem('pscape_taphint') === '1') return;
+  touchHintEl.style.display = 'block';
+  _touchHintTimer = setTimeout(dismissTouchHint, 7000);
+}
+function dismissTouchHint() {
+  if (!touchHintEl) return;
+  touchHintEl.style.display = 'none';
+  if (_touchHintTimer) { clearTimeout(_touchHintTimer); _touchHintTimer = null; }
+  localStorage.setItem('pscape_taphint', '1');
 }
 function startWithCity(cityKey) {
   hideIntro();
